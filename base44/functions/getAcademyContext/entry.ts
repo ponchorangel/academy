@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
       responsible: memberRows.some((item) => item.role === 'organization_admin' && item.status === 'active') || invitationRows.some((item) => item.role === 'organization_admin' && item.status === 'pending'),
       facilitator: facilitatorRows.some((item) => item.status === 'published'),
       first_resource: sessionRows.some((item) => item.status === 'published') || courseRows.some((item) => item.status === 'published') || eventRows.some((item) => item.status === 'published') || downloadRows.some((item) => item.status === 'published'),
+      first_student: memberRows.some((item) => item.role === 'student' && item.status === 'active'),
       custom_domain: Boolean(selectedOrganization.custom_domain && selectedOrganization.custom_domain_status === 'dns_found'),
     };
     const onboardingTotal = Object.keys(onboardingItems).length;

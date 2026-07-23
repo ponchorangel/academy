@@ -30,6 +30,8 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Métricas de uso por Academy, consumo por módulo y actividad administrativa reciente.
 - Plantillas de plan por módulos, con enforcement backend y sin cobro activado.
 - Integración Stripe preparada para suscripciones multi-tenant: Billing + Checkout + Customer Portal, con webhook firmado e idempotente; cobros permanecen suspendidos por un interruptor de código hasta configurar y validar productos, precios y secretos.
+- Centro de lanzamiento con checklist operativo para pasar de Academy creada a primer taller, incluyendo branding, responsable, facilitador, recurso y alumno.
+- Reenvío de invitaciones pendientes desde Administración sin duplicar registros.
 - Datos de demostración mientras se conectan las entidades reales del primer cliente.
 
 ## Desarrollo local

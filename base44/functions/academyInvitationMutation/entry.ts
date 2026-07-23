@@ -12,10 +12,22 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user?.id || user.disabled === true) return response({ error: 'unauthorized' }, 401);
     const input = await req.json().catch(() => ({}));
+    const action = safeText(input.action, 20) || 'create';
     const organizationId = safeText(input.organization_id, 100);
     const email = safeText(input.email, 254).toLowerCase();
     const role = safeText(input.role, 20);
     const displayName = safeText(input.display_name, 160);
+    if (action === 'resend') {
+      const invitationId = safeText(input.invitation_id, 100);
+      const invitation = await base44.asServiceRole.entities.AcademyInvitation.get(invitationId).catch(() => null);
+      if (!invitation || invitation.status !== 'pending') return response({ error: 'invitation_not_found' }, 404);
+      const resendMemberships = await base44.asServiceRole.entities.AcademyMembership.filter({ user_id: user.id, organization_id: invitation.organization_id, status: 'active' });
+      const resendRole = user.role === 'admin' && !resendMemberships.length ? 'superadmin' : resendMemberships[0]?.role;
+      if (!['superadmin', 'organization_admin'].includes(resendRole)) return response({ error: 'forbidden' }, 403);
+      await base44.asServiceRole.users.inviteUser(invitation.email, 'user');
+      const updated = await base44.asServiceRole.entities.AcademyInvitation.update(invitation.id, { invited_at: new Date().toISOString() });
+      return response({ invitation: updated });
+    }
     if (!organizationId || !emailIsValid(email) || !['student', 'teacher', 'organization_admin'].includes(role)) return response({ error: 'invalid_request' }, 400);
     const memberships = await base44.asServiceRole.entities.AcademyMembership.filter({ user_id: user.id, organization_id: organizationId, status: 'active' });
     const isPlatformAdmin = user.role === 'admin' && !memberships.length;
