@@ -6,6 +6,7 @@ const ENTITY_BY_TYPE = Object.freeze({
   download: 'AcademyDownload',
   event: 'AcademyEvent',
   facilitator: 'AcademyFacilitatorProfile',
+  course: 'AcademyCourse',
 });
 
 const ROLE_PERMISSIONS = Object.freeze({
@@ -13,6 +14,7 @@ const ROLE_PERMISSIONS = Object.freeze({
   download: ['superadmin', 'organization_admin', 'teacher'],
   event: ['superadmin', 'organization_admin'],
   facilitator: ['superadmin', 'organization_admin'],
+  course: ['superadmin', 'organization_admin', 'teacher'],
 });
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -84,6 +86,14 @@ Deno.serve(async (req) => {
       data.visibility = ['private', 'members', 'public'].includes(data.visibility) ? data.visibility : 'members';
       data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
       if (!data.full_name) return response({ error: 'full_name_required' }, 400);
+    }
+    if (type === 'course') {
+      data.description = cleanText(data.description, 4000);
+      data.category = cleanText(data.category, 100);
+      data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
+      data.access = ['all_members', 'enrolled', 'invite_only', 'public'].includes(data.access) ? data.access : 'all_members';
+      data.level = ['introductory', 'intermediate', 'advanced'].includes(data.level) ? data.level : 'introductory';
+      data.facilitator_ids = Array.isArray(data.facilitator_ids) ? data.facilitator_ids.map((item: unknown) => cleanText(item, 100)).filter(Boolean).slice(0, 20) : [];
     }
     const saved = action === 'update'
       ? await entity.update(cleanText(input.id, 100), data)

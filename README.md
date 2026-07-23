@@ -4,7 +4,8 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 
 ## MVP actual
 
-- Panel de alumno con sesiones, eventos y descargables.
+- Panel de alumno con cursos, sesiones, eventos y descargables.
+- Cursos estructurados con módulos base, nivel, categoría, duración y facilitadores asignados.
 - Modelo de datos multiempresa: organizaciones, membresías y contenido con `organization_id`.
 - Personalización inicial por organización (nombre, logo, colores y módulos habilitados).
 - Estructura preparada para clientes Academy (escuelas, academias y empresas), alumnos y facilitadores.
@@ -35,6 +36,6 @@ La publicación utiliza el proyecto vinculado en `base44/.app.jsonc`. No se debe
 
 1. Resolver el contexto de organización y membresía en backend.
 2. Paneles separados para superadmin, administrador, maestro y alumno.
-3. CRUD de sesiones, eventos y descargables.
+3. CRUD de cursos, sesiones, eventos y descargables.
 4. Inscripción, asistencia, grabaciones y notificaciones.
 5. Migración selectiva desde plataformas educativas anteriores y conexión de dominios de clientes.

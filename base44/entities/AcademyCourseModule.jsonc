@@ -1,0 +1,21 @@
+{
+  "name": "AcademyCourseModule",
+  "type": "object",
+  "description": "Módulo ordenado dentro de un curso; preparado para lecciones y progreso.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "course_id": { "type": "string" },
+    "title": { "type": "string", "maxLength": 180 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "order": { "type": "integer", "minimum": 0 },
+    "status": { "type": "string", "enum": ["draft", "published", "archived"], "default": "draft" },
+    "lesson_count": { "type": "integer", "minimum": 0, "default": 0 }
+  },
+  "required": ["organization_id", "course_id", "title", "order", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

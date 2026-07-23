@@ -1,0 +1,24 @@
+{
+  "name": "AcademyCourse",
+  "type": "object",
+  "description": "Curso estructurado con módulos y lecciones.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "title": { "type": "string", "maxLength": 180 },
+    "description": { "type": "string", "maxLength": 4000 },
+    "category": { "type": "string", "maxLength": 100 },
+    "cover_url": { "type": "string", "maxLength": 1000 },
+    "status": { "type": "string", "enum": ["draft", "published", "archived"], "default": "draft" },
+    "access": { "type": "string", "enum": ["all_members", "enrolled", "invite_only", "public"], "default": "all_members" },
+    "estimated_minutes": { "type": "integer", "minimum": 1 },
+    "facilitator_ids": { "type": "array", "items": { "type": "string" } },
+    "level": { "type": "string", "enum": ["introductory", "intermediate", "advanced"], "default": "introductory" }
+  },
+  "required": ["organization_id", "title", "status", "access"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

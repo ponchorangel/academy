@@ -5,6 +5,7 @@ const CONTENT_TYPES = Object.freeze({
   sessions: 'AcademySession',
   downloads: 'AcademyDownload',
   events: 'AcademyEvent',
+  courses: 'AcademyCourse',
 });
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -47,11 +48,12 @@ Deno.serve(async (req) => {
     const academyRole = user.role === 'admin' && !membership ? 'superadmin' : membership?.role;
     const canManage = ['superadmin', 'organization_admin', 'teacher'].includes(academyRole);
     const query = { organization_id: selectedOrganization.id };
-    const [sessionRows, downloadRows, eventRows, facilitatorRows, memberRows, invitationRows] = await Promise.all([
+    const [sessionRows, downloadRows, eventRows, facilitatorRows, courseRows, memberRows, invitationRows] = await Promise.all([
       base44.asServiceRole.entities.AcademySession.filter(query),
       base44.asServiceRole.entities.AcademyDownload.filter(query),
       base44.asServiceRole.entities.AcademyEvent.filter(query),
       base44.asServiceRole.entities.AcademyFacilitatorProfile.filter(query),
+      base44.asServiceRole.entities.AcademyCourse.filter(query),
       canManage ? base44.asServiceRole.entities.AcademyMembership.filter(query) : Promise.resolve([]),
       canManage ? base44.asServiceRole.entities.AcademyInvitation.filter({ organization_id: selectedOrganization.id, status: 'pending' }) : Promise.resolve([]),
     ]);
@@ -74,6 +76,7 @@ Deno.serve(async (req) => {
         downloads: downloadRows.filter((item) => isManager || item.status === 'published'),
         events: eventRows.filter((item) => isManager || item.status === 'published'),
         facilitators: facilitatorRows.filter((item) => isManager || item.status === 'published'),
+        courses: courseRows.filter((item) => isManager || item.status === 'published'),
         members: isManager ? memberRows : [],
         invitations: isManager ? invitationRows : [],
       },
