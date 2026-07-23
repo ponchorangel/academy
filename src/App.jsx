@@ -65,6 +65,7 @@ export default function App() {
   const [academyContext, setAcademyContext] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
+  const [requestedOrganizationId, setRequestedOrganizationId] = useState("");
   const certificateNumber = new URLSearchParams(window.location.search).get("certificate");
   const organization = academyContext?.organization;
   const enabledModules = organization?.enabled_modules?.length ? organization.enabled_modules : ["sessions", "courses", "downloads", "events"];
@@ -74,7 +75,7 @@ export default function App() {
     let alive = true;
     async function loadAcademy() {
       const currentUser = await base44.auth.me().catch(() => null);
-      const contextResponse = currentUser ? await base44.functions.invoke("getAcademyContext", {}).catch(() => null) : null;
+      const contextResponse = currentUser ? await base44.functions.invoke("getAcademyContext", requestedOrganizationId ? { organization_id: requestedOrganizationId } : {}).catch(() => null) : null;
       const context = contextResponse?.data || contextResponse;
       if (!alive) return;
       setUser(context?.user || currentUser);
@@ -110,7 +111,7 @@ export default function App() {
     }
     loadAcademy();
     return () => { alive = false; };
-  }, []);
+  }, [requestedOrganizationId]);
 
   const firstName = user?.full_name?.split(" ")[0] || "estudiante";
   const nextSession = useMemo(() => sessions.find((session) => session.status === "Próxima"), [sessions]);
@@ -133,6 +134,17 @@ export default function App() {
 
   function handleOrganizationSaved(organization) {
     setAcademyContext((current) => current ? { ...current, organization } : current);
+  }
+
+  function switchOrganization(organizationId) {
+    if (!organizationId || organizationId === organization?.id) return;
+    setLoading(true);
+    setActiveView("inicio");
+    setRequestedOrganizationId(organizationId);
+  }
+
+  function handleTenantCreated(tenant) {
+    setRequestedOrganizationId(tenant.id);
   }
 
   function handleMemberChanged(member) {
@@ -209,7 +221,7 @@ export default function App() {
           {academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}
         </nav>
         <div className="topbar-actions">
-          <span className="tenant-name">{academyContext?.organization?.display_name || "Academy"}</span>
+          {academyContext?.organizations?.length > 0 && <label className="tenant-switcher"><span className="sr-only">Academy activa</span><select value={organization?.id || ""} onChange={(event) => switchOrganization(event.target.value)} aria-label="Cambiar Academy activa">{academyContext.organizations.map((item) => <option key={item.id} value={item.id}>{item.display_name || item.name}</option>)}</select></label>}
           {user ? <div className="avatar">{firstName.slice(0, 1)}</div> : <button className="sign-in" onClick={() => setShowLogin(true)}><LogIn size={16} /> Entrar</button>}
           <button className="mobile-menu-button" onClick={() => setMobileMenu((value) => !value)} aria-label="Abrir menú">{mobileMenu ? <X /> : <Menu />}</button>
         </div>
@@ -224,7 +236,7 @@ export default function App() {
         {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} enrollment={enrollments.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} progress={lessonProgress} certificate={certificates.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} organizationId={academyContext?.organization?.id} onEnroll={enrollInCourse} onCompleteLesson={completeLesson} onBack={() => navigate("cursos")} />}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} registration={registrations.find((item) => item.resource_id === event.id)} onRegister={() => registerFor("event", event.id)} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} onOpen={() => openDownload(download)} />)}</div></CollectionView>}
-        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
+        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} onTenantCreated={handleTenantCreated} />}
         {activeView === "administracion" && <SecureDownloadUploader organization={academyContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
         {activeView === "administracion" && <EventOperations organization={academyContext?.organization} events={events} registrations={registrations} onSaved={(item) => handleContentSaved("event", item, "update")} onRemind={sendEventReminders} />}
         {activeView === "administracion" && <ModuleSettings organization={organization} onSaved={handleOrganizationSaved} />}
@@ -408,14 +420,34 @@ function EmptyState({ title, text }) {
   return <div className="empty-state"><PlayCircle size={28} /><h3>{title}</h3><p>{text}</p></div>;
 }
 
-function AdminView({ context, sessions, downloads, events, courses, courseModules, courseLessons, facilitators, members, invitations, onContentSaved, onOrganizationSaved, onArchived, onMemberChanged, onInvitationCreated }) {
+function AdminView({ context, sessions, downloads, events, courses, courseModules, courseLessons, facilitators, members, invitations, onContentSaved, onOrganizationSaved, onArchived, onMemberChanged, onInvitationCreated, onTenantCreated }) {
   const organization = context?.organization;
   const [editing, setEditing] = useState(null);
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
+    {context?.user?.role === "superadmin" && <TenantManager organizations={context?.organizations || []} onCreated={onTenantCreated} />}
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
     <div className="admin-workspace"><OrganizationSettings organization={organization} onSaved={onOrganizationSaved} /><ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><CourseBuilder organization={organization} courses={courses} modules={courseModules} lessons={courseLessons} onSaved={onContentSaved} onArchived={onArchived} /><MemberManager organization={organization} members={members} invitations={invitations} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} /><AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Cursos" type="course" items={courses} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
   </CollectionView>;
+}
+
+function TenantManager({ organizations, onCreated }) {
+  const [form, setForm] = useState({ slug: "", name: "", display_name: "", primary_color: "#6B4EFF", welcome_message: "" });
+  const [status, setStatus] = useState("idle");
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  async function createTenant(event) {
+    event.preventDefault();
+    setStatus("saving");
+    try {
+      const result = await base44.functions.invoke("academyTenantMutation", { action: "create", ...form });
+      const payload = result?.data || result;
+      if (!payload?.organization) throw new Error("tenant_not_created");
+      onCreated(payload.organization);
+      setForm({ slug: "", name: "", display_name: "", primary_color: "#6B4EFF", welcome_message: "" });
+      setStatus("saved");
+    } catch { setStatus("error"); }
+  }
+  return <section className="admin-panel tenant-manager"><div className="admin-panel-heading"><div><p className="eyebrow">PLATAFORMA</p><h3>Academies y clientes</h3></div><span className="panel-note">{organizations.length} organizaciones activas</span></div><p className="panel-description">Crea el espacio inicial de cada escuela, academia o empresa. Después podrás personalizar su marca, módulos, facilitadores y alumnos.</p><form className="admin-form" onSubmit={createTenant}><label>Identificador único<input value={form.slug} onChange={(event) => update("slug", event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} placeholder="mi-academy" pattern="^[a-z0-9-]{2,80}$" required /><span className="field-help">Solo minúsculas, números y guiones.</span></label><label>Nombre interno<input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Mi Academy" maxLength={160} required /></label><label>Nombre visible<input value={form.display_name} onChange={(event) => update("display_name", event.target.value)} placeholder="Mi Academy" maxLength={160} required /></label><label>Color principal<div className="color-input"><input type="color" value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} /><input value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} pattern="^#[0-9a-fA-F]{6}$" required /></div></label><label>Mensaje de bienvenida<textarea value={form.welcome_message} onChange={(event) => update("welcome_message", event.target.value)} rows="2" maxLength={1000} placeholder="Bienvenido a tu espacio de aprendizaje." /></label><div className="form-actions"><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Creando..." : "Crear Academy"}</button>{status === "saved" && <span className="form-success">Academy creada y seleccionada</span>}{status === "error" && <span className="form-error">No se pudo crear. Revisa que el identificador no esté usado.</span>}</div></form></section>;
 }
 
 function AdminStat({ label, value }) {
