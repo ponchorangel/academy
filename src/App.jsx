@@ -54,6 +54,8 @@ export default function App() {
   const [courses, setCourses] = useState([]);
   const [courseModules, setCourseModules] = useState([]);
   const [courseLessons, setCourseLessons] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [lessonProgress, setLessonProgress] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [facilitators, setFacilitators] = useState([]);
   const [members, setMembers] = useState([]);
@@ -79,6 +81,8 @@ export default function App() {
       const remoteCourses = context?.content?.courses || [];
       const remoteCourseModules = context?.content?.course_modules || [];
       const remoteCourseLessons = context?.content?.course_lessons || [];
+      const remoteEnrollments = context?.content?.enrollments || [];
+      const remoteLessonProgress = context?.content?.lesson_progress || [];
       if (remoteSessions.length) setSessions(remoteSessions.map((item) => ({ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", teacher: item.teacher_name || "Academy", color: "mint" })));
       if (remoteDownloads.length) setDownloads(remoteDownloads.map((item) => ({ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" })));
       if (remoteEvents.length) setEvents(remoteEvents);
@@ -89,6 +93,8 @@ export default function App() {
       setCourses(remoteCourses);
       setCourseModules(remoteCourseModules);
       setCourseLessons(remoteCourseLessons);
+      setEnrollments(remoteEnrollments);
+      setLessonProgress(remoteLessonProgress);
       setLoading(false);
     }
     loadAcademy();
@@ -124,6 +130,20 @@ export default function App() {
 
   function handleInvitationCreated(invitation) {
     setInvitations((current) => [invitation, ...current]);
+  }
+
+  async function enrollInCourse(courseId) {
+    const result = await base44.functions.invoke("academyLearningMutation", { action: "enroll", organization_id: academyContext?.organization?.id, course_id: courseId });
+    const payload = result?.data || result;
+    if (payload?.enrollment) setEnrollments((current) => [...current.filter((item) => item.id !== payload.enrollment.id), payload.enrollment]);
+    return payload?.enrollment;
+  }
+
+  async function completeLesson(lessonId) {
+    const result = await base44.functions.invoke("academyLearningMutation", { action: "complete_lesson", organization_id: academyContext?.organization?.id, lesson_id: lessonId });
+    const payload = result?.data || result;
+    if (payload?.progress) setLessonProgress((current) => [...current.filter((item) => item.id !== payload.progress.id), payload.progress]);
+    if (payload?.enrollment) setEnrollments((current) => [...current.filter((item) => item.id !== payload.enrollment.id), payload.enrollment]);
   }
 
   async function handleArchived(type, id) {
@@ -165,7 +185,7 @@ export default function App() {
         {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} loading={loading} onNavigate={navigate} organization={academyContext?.organization} />}
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "cursos" && <CollectionView title="Cursos" eyebrow="RUTAS DE APRENDIZAJE" description="Avanza por cursos estructurados a tu ritmo." icon={BookOpen}>{courses.length ? <div className="session-grid">{courses.map((course) => <CourseCard key={course.id} course={course} onOpen={() => { setSelectedCourseId(course.id); navigate("curso"); }} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los cursos de tu Academy." />}</CollectionView>}
-        {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} onBack={() => navigate("cursos")} />}
+        {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} enrollment={enrollments.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} progress={lessonProgress} onEnroll={enrollInCourse} onCompleteLesson={completeLesson} onBack={() => navigate("cursos")} />}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} />)}</div></CollectionView>}
         {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
@@ -236,10 +256,14 @@ function CourseCard({ course, onOpen }) {
   return <article className="session-card course-card"><div className="session-card-top"><span className="badge">{course.status === "published" ? "Publicado" : course.status || "Curso"}</span><span className="session-type">{levelLabels[course.level] || "Ruta"}</span></div><div className="session-card-body"><h3>{course.title}</h3><p className="course-description">{course.description || "Curso estructurado para avanzar paso a paso."}</p><p className="session-meta"><BookOpen size={15} /> {course.category || "Ruta de aprendizaje"}</p>{course.estimated_minutes ? <p className="session-meta"><PlayCircle size={15} /> {course.estimated_minutes} min estimados</p> : null}</div><button className="card-action" onClick={onOpen}>Ver curso <ChevronRight size={16} /></button></article>;
 }
 
-function CourseDetailView({ course, modules, lessons, onBack }) {
+function CourseDetailView({ course, modules, lessons, enrollment, progress, onEnroll, onCompleteLesson, onBack }) {
+  const [status, setStatus] = useState("idle");
   if (!course) return <EmptyState title="Curso no encontrado" text="Regresa a Cursos para elegir otra ruta." />;
   const courseModules = modules.filter((module) => module.course_id === course.id).sort((a, b) => a.order - b.order);
-  return <section className="course-detail"><button className="text-link" onClick={onBack}><ChevronRight size={16} className="back-icon" /> Volver a cursos</button><div className="course-detail-heading"><p className="eyebrow">CURSO · {course.category || "RUTA DE APRENDIZAJE"}</p><h1>{course.title}</h1><p>{course.description || "Un recorrido estructurado para aprender paso a paso."}</p></div>{courseModules.length ? <div className="course-outline">{courseModules.map((module) => { const moduleLessons = lessons.filter((lesson) => lesson.module_id === module.id).sort((a, b) => a.order - b.order); return <article className="module-row" key={module.id}><div><span className="module-number">{String(module.order + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{module.description || "Módulo de aprendizaje"}</p></div></div><div className="lesson-list">{moduleLessons.length ? moduleLessons.map((lesson) => <div className="lesson-row" key={lesson.id}><PlayCircle size={15} /><span>{lesson.title}</span><small>{lesson.duration_minutes ? `${lesson.duration_minutes} min` : lesson.lesson_type || "Lección"}</small></div>) : <span className="panel-note">Próximamente se publicarán las lecciones de este módulo.</span>}</div></article>; })}</div> : <EmptyState title="Contenido en preparación" text="Este curso todavía no tiene módulos publicados." />}</section>;
+  const completedLessons = new Set(progress.filter((item) => item.course_id === course.id && item.status === "completed").map((item) => item.lesson_id));
+  async function enroll() { setStatus("saving"); try { await onEnroll(course.id); setStatus("saved"); } catch { setStatus("error"); } }
+  async function complete(lessonId) { setStatus("saving"); try { await onCompleteLesson(lessonId); setStatus("saved"); } catch { setStatus("error"); } }
+  return <section className="course-detail"><button className="text-link" onClick={onBack}><ChevronRight size={16} className="back-icon" /> Volver a cursos</button><div className="course-detail-heading"><p className="eyebrow">CURSO · {course.category || "RUTA DE APRENDIZAJE"}</p><h1>{course.title}</h1><p>{course.description || "Un recorrido estructurado para aprender paso a paso."}</p>{enrollment ? <div className="progress-summary"><div><strong>{enrollment.progress_percent || 0}%</strong><span>de avance</span></div><div className="progress-track"><span style={{ width: `${enrollment.progress_percent || 0}%` }} /></div><small>{enrollment.status === "completed" ? "Curso completado" : "Continúa con tu siguiente lección"}</small></div> : <button className="primary-button" onClick={enroll} disabled={status === "saving"}>{status === "saving" ? "Inscribiendo..." : "Inscribirme al curso"}</button>}{status === "error" && <span className="form-error">No se pudo actualizar tu inscripción.</span>}</div>{courseModules.length ? <div className="course-outline">{courseModules.map((module) => { const moduleLessons = lessons.filter((lesson) => lesson.module_id === module.id).sort((a, b) => a.order - b.order); return <article className="module-row" key={module.id}><div><span className="module-number">{String(module.order + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{module.description || "Módulo de aprendizaje"}</p></div></div><div className="lesson-list">{moduleLessons.length ? moduleLessons.map((lesson) => <div className={`lesson-row ${completedLessons.has(lesson.id) ? "completed" : ""}`} key={lesson.id}><button className="lesson-complete" onClick={() => enrollment && !completedLessons.has(lesson.id) && complete(lesson.id)} disabled={!enrollment || completedLessons.has(lesson.id) || status === "saving"} aria-label={completedLessons.has(lesson.id) ? "Lección completada" : "Marcar lección como completada"}>{completedLessons.has(lesson.id) ? "✓" : "○"}</button><span>{lesson.title}</span><small>{lesson.duration_minutes ? `${lesson.duration_minutes} min` : lesson.lesson_type || "Lección"}</small></div>) : <span className="panel-note">Próximamente se publicarán las lecciones de este módulo.</span>}</div></article>; })}</div> : <EmptyState title="Contenido en preparación" text="Este curso todavía no tiene módulos publicados." />}</section>;
 }
 
 function DownloadRow({ download }) {

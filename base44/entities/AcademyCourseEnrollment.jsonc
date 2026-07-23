@@ -1,0 +1,22 @@
+{
+  "name": "AcademyCourseEnrollment",
+  "type": "object",
+  "description": "Inscripción de un alumno a un curso.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "course_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "email": { "type": "string", "maxLength": 320 },
+    "status": { "type": "string", "enum": ["enrolled", "completed", "withdrawn"], "default": "enrolled" },
+    "progress_percent": { "type": "integer", "minimum": 0, "maximum": 100, "default": 0 },
+    "enrolled_at": { "type": "string" },
+    "completed_at": { "type": "string" }
+  },
+  "required": ["organization_id", "course_id", "user_id", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

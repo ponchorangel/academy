@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     const academyRole = user.role === 'admin' && !membership ? 'superadmin' : membership?.role;
     const canManage = ['superadmin', 'organization_admin', 'teacher'].includes(academyRole);
     const query = { organization_id: selectedOrganization.id };
-    const [sessionRows, downloadRows, eventRows, facilitatorRows, courseRows, moduleRows, lessonRows, memberRows, invitationRows] = await Promise.all([
+    const [sessionRows, downloadRows, eventRows, facilitatorRows, courseRows, moduleRows, lessonRows, enrollmentRows, progressRows, memberRows, invitationRows] = await Promise.all([
       base44.asServiceRole.entities.AcademySession.filter(query),
       base44.asServiceRole.entities.AcademyDownload.filter(query),
       base44.asServiceRole.entities.AcademyEvent.filter(query),
@@ -58,6 +58,8 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.AcademyCourse.filter(query),
       base44.asServiceRole.entities.AcademyCourseModule.filter(query),
       base44.asServiceRole.entities.AcademyCourseLesson.filter(query),
+      base44.asServiceRole.entities.AcademyCourseEnrollment.filter({ organization_id: selectedOrganization.id, user_id: user.id }),
+      base44.asServiceRole.entities.AcademyLessonProgress.filter({ organization_id: selectedOrganization.id, user_id: user.id }),
       canManage ? base44.asServiceRole.entities.AcademyMembership.filter(query) : Promise.resolve([]),
       canManage ? base44.asServiceRole.entities.AcademyInvitation.filter({ organization_id: selectedOrganization.id, status: 'pending' }) : Promise.resolve([]),
     ]);
@@ -83,6 +85,8 @@ Deno.serve(async (req) => {
         courses: courseRows.filter((item) => isManager || item.status === 'published'),
         course_modules: moduleRows.filter((item) => isManager || item.status === 'published'),
         course_lessons: lessonRows.filter((item) => isManager || item.status === 'published'),
+        enrollments: enrollmentRows,
+        lesson_progress: progressRows,
         members: isManager ? memberRows : [],
         invitations: isManager ? invitationRows : [],
       },

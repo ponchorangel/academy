@@ -1,0 +1,22 @@
+{
+  "name": "AcademyLessonProgress",
+  "type": "object",
+  "description": "Avance de un alumno en una lección.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "course_id": { "type": "string" },
+    "module_id": { "type": "string" },
+    "lesson_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["in_progress", "completed"], "default": "in_progress" },
+    "completed_at": { "type": "string" },
+    "last_accessed_at": { "type": "string" }
+  },
+  "required": ["organization_id", "course_id", "module_id", "lesson_id", "user_id", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
