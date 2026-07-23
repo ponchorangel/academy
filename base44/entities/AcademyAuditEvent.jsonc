@@ -1,0 +1,23 @@
+{
+  "name": "AcademyAuditEvent",
+  "type": "object",
+  "description": "Actividad administrativa y operativa de una organización Academy.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "actor_user_id": { "type": "string" },
+    "actor_email": { "type": "string", "maxLength": 254 },
+    "actor_role": { "type": "string", "maxLength": 40 },
+    "action": { "type": "string", "maxLength": 80 },
+    "entity_type": { "type": "string", "maxLength": 80 },
+    "entity_id": { "type": "string", "maxLength": 100 },
+    "metadata": { "type": "string", "maxLength": 1000 },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["organization_id", "actor_user_id", "action", "created_at"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": false,
+    "delete": false
+  }
+}

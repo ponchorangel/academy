@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
+  BarChart3,
   BookOpen,
   CalendarDays,
   ChevronRight,
@@ -140,10 +142,12 @@ export default function App() {
     if (type === "course") setCourses((current) => update(current, item));
     if (type === "course_module") setCourseModules((current) => update(current, item));
     if (type === "course_lesson") setCourseLessons((current) => update(current, item));
+    recordAudit(`${mode === "update" ? "update" : "create"}.${type}`, type, item?.id);
   }
 
   function handleOrganizationSaved(organization) {
     setAcademyContext((current) => current ? { ...current, organization } : current);
+    recordAudit("update.organization", "organization", organization?.id);
   }
 
   function switchOrganization(organizationId) {
@@ -156,14 +160,22 @@ export default function App() {
 
   function handleTenantCreated(tenant) {
     setRequestedOrganizationId(tenant.id);
+    recordAudit("create.organization", "organization", tenant.id);
   }
 
   function handleMemberChanged(member) {
     setMembers((current) => current.map((item) => item.id === member.id ? member : item));
+    recordAudit("update.membership", "membership", member?.id);
   }
 
   function handleInvitationCreated(invitation) {
     setInvitations((current) => [invitation, ...current]);
+    recordAudit("create.invitation", "invitation", invitation?.id);
+  }
+
+  function recordAudit(eventAction, entityType, entityId, organizationId = academyContext?.organization?.id) {
+    if (!organizationId || !eventAction) return;
+    base44.functions.invoke("academyAuditMutation", { action: "record", organization_id: organizationId, event_action: eventAction, entity_type: entityType, entity_id: entityId }).catch(() => null);
   }
 
   async function enrollInCourse(courseId) {
@@ -208,6 +220,7 @@ export default function App() {
     const organizationId = academyContext?.organization?.id;
     if (!organizationId || !id) return;
     await base44.functions.invoke("academyContentMutation", { action: "archive", type, organization_id: organizationId, id });
+    recordAudit(`archive.${type}`, type, id, organizationId);
     if (type === "session") setSessions((current) => current.filter((item) => item.id !== id));
     if (type === "download") setDownloads((current) => current.filter((item) => item.id !== id));
     if (type === "event") setEvents((current) => current.filter((item) => item.id !== id));
@@ -449,9 +462,33 @@ function AdminView({ context, sessions, downloads, events, courses, courseModule
     {context?.user?.role === "superadmin" && <TenantManager organizations={context?.organizations || []} onCreated={onTenantCreated} />}
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <OnboardingChecklist onboarding={context?.onboarding} />
+    <AnalyticsPanel organization={organization} />
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
     <div className="admin-workspace">{context?.permissions?.can_manage_organization && <OrganizationSettings organization={organization} onSaved={onOrganizationSaved} />}<ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><CourseBuilder organization={organization} courses={courses} modules={courseModules} lessons={courseLessons} onSaved={onContentSaved} onArchived={onArchived} />{context?.permissions?.can_manage_organization && <MemberManager organization={organization} members={members} invitations={invitations} canManageOrganization={context?.permissions?.can_manage_organization} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} />}<AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Cursos" type="course" items={courses} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
   </CollectionView>;
+}
+
+function AnalyticsPanel({ organization }) {
+  const [data, setData] = useState(null);
+  const [status, setStatus] = useState("loading");
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      setStatus("loading");
+      try {
+        const result = await base44.functions.invoke("academyAnalytics", { organization_id: organization?.id });
+        const payload = result?.data || result;
+        if (!alive) return;
+        setData(payload);
+        setStatus("ready");
+      } catch { if (alive) setStatus("error"); }
+    }
+    if (organization?.id) load();
+    return () => { alive = false; };
+  }, [organization?.id]);
+  if (status === "loading") return <section className="admin-panel analytics-panel"><div className="admin-panel-heading"><div><p className="eyebrow">OPERACIÓN SAAS</p><h3>Métricas de uso</h3></div><span className="panel-note">Cargando...</span></div></section>;
+  if (status === "error" || !data) return <section className="admin-panel analytics-panel"><div className="admin-panel-heading"><div><p className="eyebrow">OPERACIÓN SAAS</p><h3>Métricas de uso</h3></div><span className="form-error">No disponibles</span></div></section>;
+  return <section className="admin-panel analytics-panel"><div className="admin-panel-heading"><div><p className="eyebrow">OPERACIÓN SAAS</p><h3>Métricas de uso</h3></div><span className="panel-note">Base para planes por módulo</span></div><div className="analytics-summary"><div><strong>{data.summary?.active_members || 0}</strong><span>Miembros activos</span></div><div><strong>{data.summary?.published_resources || 0}</strong><span>Recursos publicados</span></div><div><strong>{data.summary?.facilitators || 0}</strong><span>Facilitadores</span></div><div><strong>{data.summary?.pending_invitations || 0}</strong><span>Invitaciones pendientes</span></div></div><div className="analytics-columns"><div><h4><BarChart3 size={16} /> Uso por módulo</h4><div className="module-usage-list">{(data.module_usage || []).map((module) => <div className="module-usage-row" key={module.key}><span>{module.label}</span><strong>{module.published}</strong><small>{module.total} registros</small></div>)}</div></div><div><h4><Activity size={16} /> Actividad reciente</h4>{data.recent_activity?.length ? <div className="activity-list">{data.recent_activity.slice(0, 6).map((event) => <div className="activity-row" key={event.id}><span>{event.action || "Actividad"}</span><small>{event.actor_email || "Usuario"} · {formatDate(event.created_at)}</small></div>)}</div> : <div className="activity-empty">Aún no hay actividad registrada.</div>}</div></div></section>;
 }
 
 function OnboardingChecklist({ onboarding }) {
