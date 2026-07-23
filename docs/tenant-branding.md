@@ -12,3 +12,5 @@ Cada organización puede configurar su experiencia sin cambiar la identidad base
 La configuración se guarda en `AcademyOrganization` y se aplica al portal autenticado del tenant activo.
 
 El panel de Administración incluye un checklist de onboarding con identidad, bienvenida, módulos, responsable, facilitadores, primer recurso y dominio. El logo se carga como archivo público validado (PNG, JPG o WebP, máximo 2 MB) y después se guarda su URL HTTPS en la configuración de la organización.
+
+Los dominios se validan con una consulta DNS real sobre registros CNAME, A o AAAA. `dns_found` significa que el hostname ya publica algún registro; la conexión final al hosting todavía debe completarse en el proveedor de dominio/Base44.

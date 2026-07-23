@@ -11,6 +11,8 @@
     "status": { "type": "string", "enum": ["active", "paused", "archived"], "default": "active" },
     "enabled_modules": { "type": "array", "items": { "type": "string" }, "default": ["sessions", "courses", "downloads", "events"] },
     "custom_domain": { "type": "string", "maxLength": 255 },
+    "custom_domain_status": { "type": "string", "enum": ["not_configured", "pending_dns", "dns_found"], "default": "not_configured" },
+    "domain_checked_at": { "type": "string", "format": "date-time" },
     "welcome_message": { "type": "string", "maxLength": 1000 }
   },
   "required": ["slug", "name", "display_name", "status"],

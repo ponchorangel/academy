@@ -3,6 +3,10 @@ import { safeText } from './_shared/security.js';
 
 const MODULES = new Set(['sessions', 'courses', 'downloads', 'events', 'facilitators', 'students']);
 
+function validDomain(value: string) {
+  return !value || (value.length <= 253 && /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(value));
+}
+
 function response(body: Record<string, unknown>, status = 200) {
   return Response.json(body, { status });
 }
@@ -29,7 +33,8 @@ Deno.serve(async (req) => {
       custom_domain: safeText(input.custom_domain, 255),
       enabled_modules: Array.isArray(input.enabled_modules) ? input.enabled_modules.filter((item: unknown) => MODULES.has(String(item))).slice(0, 10) : existing.enabled_modules,
     };
-    if (!data.display_name || !/^#[0-9a-fA-F]{6}$/.test(data.primary_color) || (data.logo_url && !/^https:\/\//i.test(data.logo_url))) return response({ error: 'invalid_brand_config' }, 400);
+    if (!data.display_name || !/^#[0-9a-fA-F]{6}$/.test(data.primary_color) || (data.logo_url && !/^https:\/\//i.test(data.logo_url)) || !validDomain(data.custom_domain)) return response({ error: 'invalid_brand_config' }, 400);
+    if (!data.custom_domain && existing.custom_domain) data.custom_domain_status = 'not_configured';
     const organization = await base44.asServiceRole.entities.AcademyOrganization.update(organizationId, data);
     return response({ organization });
   } catch (_error) {
