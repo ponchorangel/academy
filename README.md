@@ -9,6 +9,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Personalización inicial por organización (nombre, logo, colores y módulos habilitados).
 - Estructura preparada para clientes Academy (escuelas, academias y empresas), alumnos y facilitadores.
 - Perfiles de facilitador con biografía, expertise, background y varios facilitadores por sesión o evento.
+- Invitaciones y membresías de alumnos por organización, con suspensión y reactivación.
 - Datos de demostración mientras se conectan las entidades reales del primer cliente.
 
 ## Desarrollo local
