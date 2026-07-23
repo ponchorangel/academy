@@ -426,9 +426,16 @@ function AdminView({ context, sessions, downloads, events, courses, courseModule
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
     {context?.user?.role === "superadmin" && <TenantManager organizations={context?.organizations || []} onCreated={onTenantCreated} />}
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
+    <OnboardingChecklist onboarding={context?.onboarding} />
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
     <div className="admin-workspace"><OrganizationSettings organization={organization} onSaved={onOrganizationSaved} /><ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><CourseBuilder organization={organization} courses={courses} modules={courseModules} lessons={courseLessons} onSaved={onContentSaved} onArchived={onArchived} /><MemberManager organization={organization} members={members} invitations={invitations} canManageOrganization={context?.permissions?.can_manage_organization} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} /><AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Cursos" type="course" items={courses} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
   </CollectionView>;
+}
+
+function OnboardingChecklist({ onboarding }) {
+  if (!onboarding) return null;
+  const labels = { branding: "Subir el logo", welcome: "Escribir bienvenida", modules: "Elegir módulos", responsible: "Asignar responsable", facilitator: "Crear facilitador", first_resource: "Publicar primer recurso", custom_domain: "Conectar dominio" };
+  return <section className="admin-panel onboarding-panel"><div className="admin-panel-heading"><div><p className="eyebrow">ONBOARDING</p><h3>Lista para entregar</h3></div><span className="onboarding-progress">{onboarding.completed}/{onboarding.total} completados · {onboarding.percentage}%</span></div><div className="onboarding-track"><span style={{ width: `${onboarding.percentage}%` }} /></div><div className="onboarding-list">{Object.entries(labels).map(([key, label]) => <div className={`onboarding-item ${onboarding.items[key] ? "done" : ""}`} key={key}><span className="onboarding-check">{onboarding.items[key] ? "✓" : ""}</span><span>{label}</span>{!onboarding.items[key] && <small>Pendiente</small>}</div>)}</div></section>;
 }
 
 function TenantManager({ organizations, onCreated }) {
@@ -457,7 +464,20 @@ function AdminStat({ label, value }) {
 function OrganizationSettings({ organization, onSaved }) {
   const [form, setForm] = useState({ display_name: organization?.display_name || "Academy", primary_color: organization?.primary_color || "#0091D1", logo_url: organization?.logo_url || "", welcome_message: organization?.welcome_message || "", custom_domain: organization?.custom_domain || "" });
   const [status, setStatus] = useState("idle");
+  useEffect(() => { setForm({ display_name: organization?.display_name || "Academy", primary_color: organization?.primary_color || "#0091D1", logo_url: organization?.logo_url || "", welcome_message: organization?.welcome_message || "", custom_domain: organization?.custom_domain || "" }); setStatus("idle"); }, [organization?.id]);
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  async function uploadLogo(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { setStatus("logo_error"); return; }
+    setStatus("uploading");
+    try {
+      const uploaded = await base44.integrations.Core.UploadFile({ file });
+      if (!uploaded?.file_url) throw new Error("logo_upload_failed");
+      update("logo_url", uploaded.file_url);
+      setStatus("logo_uploaded");
+    } catch { setStatus("logo_error"); }
+  }
   async function submit(event) {
     event.preventDefault();
     setStatus("saving");
@@ -468,7 +488,7 @@ function OrganizationSettings({ organization, onSaved }) {
       setStatus("saved");
     } catch { setStatus("error"); }
   }
-  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">MARCA DEL CLIENTE</p><h3>Personalización de organización</h3></div><span className="panel-note">Se aplicará al tenant activo</span></div><form className="admin-form" onSubmit={submit}><label>Nombre visible<input value={form.display_name} onChange={(event) => update("display_name", event.target.value)} maxLength={160} required /></label><label>Color principal<div className="color-input"><input type="color" value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} /><input value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} pattern="^#[0-9a-fA-F]{6}$" required /></div></label><label>Logo URL<input value={form.logo_url} onChange={(event) => update("logo_url", event.target.value)} placeholder="Se habilitará carga segura próximamente" /></label><label>Mensaje de bienvenida<textarea value={form.welcome_message} onChange={(event) => update("welcome_message", event.target.value)} rows="2" maxLength={1000} /></label><label>Dominio personalizado<input value={form.custom_domain} onChange={(event) => update("custom_domain", event.target.value)} placeholder="academy.tuempresa.com" /></label><div className="form-actions"><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Guardando..." : "Guardar configuración"}</button>{status === "saved" && <span className="form-success">Guardado</span>}{status === "error" && <span className="form-error">No se pudo guardar</span>}</div></form></section>;
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">MARCA DEL CLIENTE</p><h3>Personalización de organización</h3></div><span className="panel-note">Se aplicará al tenant activo</span></div><form className="admin-form" onSubmit={submit}><label>Nombre visible<input value={form.display_name} onChange={(event) => update("display_name", event.target.value)} maxLength={160} required /></label><label>Color principal<div className="color-input"><input type="color" value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} /><input value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} pattern="^#[0-9a-fA-F]{6}$" required /></div></label><label>Logo de la Academy<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadLogo} disabled={status === "uploading"} /><span className="field-help">PNG, JPG o WebP · máximo 2 MB. {status === "uploading" ? "Subiendo..." : status === "logo_uploaded" ? "Logo cargado; guarda la configuración." : ""}</span></label><label>URL pública del logo<input value={form.logo_url} onChange={(event) => update("logo_url", event.target.value)} placeholder="https://..." type="url" /></label><label>Mensaje de bienvenida<textarea value={form.welcome_message} onChange={(event) => update("welcome_message", event.target.value)} rows="2" maxLength={1000} /></label><label>Dominio personalizado<input value={form.custom_domain} onChange={(event) => update("custom_domain", event.target.value)} placeholder="academy.tuempresa.com" /><span className="field-help">La conexión DNS se configura después de guardar.</span></label><div className="form-actions"><button className="primary-button" disabled={status === "saving" || status === "uploading"}>{status === "saving" ? "Guardando..." : "Guardar configuración"}</button>{status === "saved" && <span className="form-success">Guardado</span>}{status === "error" && <span className="form-error">No se pudo guardar</span>}{status === "logo_error" && <span className="form-error">El logo debe ser PNG, JPG o WebP de máximo 2 MB.</span>}</div></form></section>;
 }
 
 function ContentCreator({ organization, canManageEvents, facilitators, editingItem, editingType, onClearEdit, onSaved }) {

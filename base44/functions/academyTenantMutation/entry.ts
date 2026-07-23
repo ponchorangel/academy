@@ -37,14 +37,15 @@ Deno.serve(async (req) => {
       const adminEmail = safeText(input.admin_email, 254).toLowerCase();
       const adminDisplayName = safeText(input.admin_display_name, 160);
       const primaryColor = safeText(input.primary_color || '#6B4EFF', 7);
-      if (!slugIsValid(slug) || !name || !displayName || !emailIsValid(adminEmail) || !adminDisplayName || !/^#[0-9a-fA-F]{6}$/.test(primaryColor)) return response({ error: 'invalid_tenant' }, 400);
+      const logoUrl = safeText(input.logo_url, 1000);
+      if (!slugIsValid(slug) || !name || !displayName || !emailIsValid(adminEmail) || !adminDisplayName || !/^#[0-9a-fA-F]{6}$/.test(primaryColor) || (logoUrl && !/^https:\/\//i.test(logoUrl))) return response({ error: 'invalid_tenant' }, 400);
       const duplicate = await base44.asServiceRole.entities.AcademyOrganization.filter({ slug });
       if (duplicate.length) return response({ error: 'slug_in_use' }, 409);
       const organization = await base44.asServiceRole.entities.AcademyOrganization.create({
         slug,
         name,
         display_name: displayName,
-        logo_url: safeText(input.logo_url, 1000),
+        logo_url: logoUrl,
         primary_color: primaryColor,
         status: 'active',
         enabled_modules: normalizeModules(input.enabled_modules),

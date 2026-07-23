@@ -67,6 +67,17 @@ Deno.serve(async (req) => {
     ]);
 
     const isManager = canManage;
+    const onboardingItems = {
+      branding: Boolean(selectedOrganization.logo_url && /^https:\/\//i.test(selectedOrganization.logo_url)),
+      welcome: Boolean(selectedOrganization.welcome_message),
+      modules: Array.isArray(selectedOrganization.enabled_modules) && selectedOrganization.enabled_modules.length > 0,
+      responsible: memberRows.some((item) => item.role === 'organization_admin' && item.status === 'active') || invitationRows.some((item) => item.role === 'organization_admin' && item.status === 'pending'),
+      facilitator: facilitatorRows.some((item) => item.status === 'published'),
+      first_resource: sessionRows.some((item) => item.status === 'published') || courseRows.some((item) => item.status === 'published') || eventRows.some((item) => item.status === 'published') || downloadRows.some((item) => item.status === 'published'),
+      custom_domain: Boolean(selectedOrganization.custom_domain),
+    };
+    const onboardingTotal = Object.keys(onboardingItems).length;
+    const onboardingCompleted = Object.values(onboardingItems).filter(Boolean).length;
     return response({
       user: { id: user.id, email: user.email, full_name: user.full_name || '', role: academyRole || 'guest' },
       organization: selectedOrganization,
@@ -79,6 +90,7 @@ Deno.serve(async (req) => {
         can_manage_events: ['superadmin', 'organization_admin'].includes(academyRole),
         can_manage_downloads: isManager,
       },
+      onboarding: { items: onboardingItems, completed: onboardingCompleted, total: onboardingTotal, percentage: Math.round((onboardingCompleted / onboardingTotal) * 100) },
       content: {
         sessions: sessionRows.filter((item) => isManager || item.status === 'published'),
         downloads: downloadRows.filter((item) => isManager || item.status === 'published'),
