@@ -113,11 +113,16 @@ Deno.serve(async (req) => {
       data.description = cleanText(data.description, 4000);
       data.content = cleanText(data.content, 12000);
       data.resource_url = cleanText(data.resource_url, 1000);
+      data.video_provider = ['youtube', 'vimeo', 'external', 'none'].includes(data.video_provider) ? data.video_provider : 'none';
+      data.video_id = cleanText(data.video_id, 160).replace(/[^a-zA-Z0-9_-]/g, '');
+      data.video_url = cleanText(data.video_url, 1000);
       data.lesson_type = ['video', 'reading', 'download', 'live', 'quiz'].includes(data.lesson_type) ? data.lesson_type : 'reading';
       data.order = Number.isInteger(data.order) ? Math.max(0, data.order) : 0;
       data.duration_minutes = Number.isInteger(data.duration_minutes) ? Math.max(0, data.duration_minutes) : 0;
       data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
       if (!data.course_id || !data.module_id) return response({ error: 'course_and_module_required' }, 400);
+      if (data.lesson_type === 'video' && data.video_provider === 'none') return response({ error: 'video_provider_required' }, 400);
+      if (['youtube', 'vimeo'].includes(data.video_provider) && !data.video_id) return response({ error: 'video_id_required' }, 400);
     }
     let saved;
     if (action === 'update') {

@@ -7,6 +7,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Panel de alumno con cursos, sesiones, eventos y descargables.
 - Cursos estructurados con módulos, lecciones, nivel, categoría, duración y facilitadores asignados.
 - Inscripción de alumnos y seguimiento de avance por lección y curso.
+- Lecciones de video con proveedores externos YouTube no listado y Vimeo.
 - Modelo de datos multiempresa: organizaciones, membresías y contenido con `organization_id`.
 - Personalización inicial por organización (nombre, logo, colores y módulos habilitados).
 - Estructura preparada para clientes Academy (escuelas, academias y empresas), alumnos y facilitadores.

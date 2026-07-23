@@ -11,6 +11,11 @@ Academy incorpora cursos como una ruta de aprendizaje estructurada, independient
 - Constructor de módulos y lecciones desde Administración.
 - Vista de detalle del curso para el alumno, con módulos y lecciones ordenadas.
 - Inscripción individual y avance por lección con porcentaje de progreso.
+- Videos externos mediante YouTube no listado o Vimeo, sin almacenar archivos de video en Academy.
 - Vista de cursos para alumnos y mención del módulo en la landing pública.
 
 Las entidades `AcademyCourseModule` y `AcademyCourseLesson` dejan preparada la relación curso → módulos → lecciones. `AcademyCourseEnrollment` y `AcademyLessonProgress` registran la inscripción y el avance del alumno. La siguiente iteración agregará evaluaciones y carga segura de materiales.
+
+## Video externo
+
+Las lecciones de video guardan únicamente el proveedor y el identificador del video. Academy genera un reproductor seguro con una lista permitida de dominios; no acepta iframes ni código HTML arbitrario. Para contenido privado se recomienda Vimeo con restricciones de incrustación por dominio. YouTube se admite como alternativa de bajo costo usando videos no listados.
