@@ -83,6 +83,8 @@ Deno.serve(async (req) => {
     }
     if (type === 'event') {
       data.description = cleanText(data.description, 3000);
+      data.meeting_url = cleanText(data.meeting_url, 1000);
+      data.recording_url = cleanText(data.recording_url, 1000);
       data.status = ['draft', 'published', 'live', 'finished', 'cancelled'].includes(data.status) ? data.status : 'draft';
     }
     if (type === 'facilitator') {
