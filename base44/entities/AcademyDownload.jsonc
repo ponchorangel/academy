@@ -1,0 +1,23 @@
+{
+  "name": "AcademyDownload",
+  "type": "object",
+  "description": "Recurso descargable o material de apoyo.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "title": { "type": "string", "maxLength": 180 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "category": { "type": "string", "maxLength": 80 },
+    "file_uri": { "type": "string", "maxLength": 1000 },
+    "file_type": { "type": "string", "enum": ["pdf", "xlsx", "docx", "pptx", "image", "link", "video"] },
+    "session_id": { "type": "string" },
+    "access": { "type": "string", "enum": ["all_members", "enrolled", "invite_only"], "default": "all_members" },
+    "status": { "type": "string", "enum": ["draft", "published", "archived"], "default": "draft" }
+  },
+  "required": ["organization_id", "title", "file_type", "access", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

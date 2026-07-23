@@ -1,0 +1,26 @@
+{
+  "name": "AcademyEvent",
+  "type": "object",
+  "description": "Evento o webinar con registro y seguimiento.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "title": { "type": "string", "maxLength": 180 },
+    "description": { "type": "string", "maxLength": 3000 },
+    "status": { "type": "string", "enum": ["draft", "published", "live", "finished", "cancelled"], "default": "draft" },
+    "start_at": { "type": "string", "format": "date-time" },
+    "end_at": { "type": "string", "format": "date-time" },
+    "speaker_names": { "type": "array", "items": { "type": "string" } },
+    "meeting_url": { "type": "string", "maxLength": 1000 },
+    "recording_url": { "type": "string", "maxLength": 1000 },
+    "capacity": { "type": "integer", "minimum": 1 },
+    "access": { "type": "string", "enum": ["free", "members", "paid"], "default": "free" },
+    "cover_url": { "type": "string", "maxLength": 1000 }
+  },
+  "required": ["organization_id", "title", "status", "start_at", "access"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

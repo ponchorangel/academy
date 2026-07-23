@@ -1,0 +1,23 @@
+{
+  "name": "AcademyOrganization",
+  "type": "object",
+  "description": "Cliente o tenant de la plataforma Academy.",
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]{2,80}$" },
+    "name": { "type": "string", "maxLength": 160 },
+    "display_name": { "type": "string", "maxLength": 160 },
+    "logo_url": { "type": "string", "maxLength": 1000 },
+    "primary_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "status": { "type": "string", "enum": ["active", "paused", "archived"], "default": "active" },
+    "enabled_modules": { "type": "array", "items": { "type": "string" }, "default": ["sessions", "downloads", "events"] },
+    "custom_domain": { "type": "string", "maxLength": 255 },
+    "welcome_message": { "type": "string", "maxLength": 1000 }
+  },
+  "required": ["slug", "name", "display_name", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": false
+  }
+}

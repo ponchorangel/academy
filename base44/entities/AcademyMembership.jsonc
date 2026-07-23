@@ -1,0 +1,21 @@
+{
+  "name": "AcademyMembership",
+  "type": "object",
+  "description": "Relación de un usuario con una organización y su rol dentro de Academy.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "email": { "type": "string", "maxLength": 254 },
+    "display_name": { "type": "string", "maxLength": 160 },
+    "role": { "type": "string", "enum": ["superadmin", "organization_admin", "teacher", "student", "guest"] },
+    "status": { "type": "string", "enum": ["invited", "active", "suspended"], "default": "active" },
+    "joined_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["organization_id", "user_id", "role", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

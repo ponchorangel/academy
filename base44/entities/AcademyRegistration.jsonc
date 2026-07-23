@@ -1,0 +1,21 @@
+{
+  "name": "AcademyRegistration",
+  "type": "object",
+  "description": "Inscripción de un usuario a una sesión o evento.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "email": { "type": "string", "maxLength": 254 },
+    "resource_type": { "type": "string", "enum": ["session", "event"] },
+    "resource_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["registered", "attended", "cancelled", "waitlisted"], "default": "registered" },
+    "registered_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["organization_id", "user_id", "resource_type", "resource_id", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

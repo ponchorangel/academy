@@ -1,0 +1,27 @@
+{
+  "name": "AcademySession",
+  "type": "object",
+  "description": "Sesión en vivo, taller, mentoría o grabación de una Academy.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "title": { "type": "string", "maxLength": 180 },
+    "description": { "type": "string", "maxLength": 3000 },
+    "session_type": { "type": "string", "enum": ["class", "workshop", "mentoring", "masterclass", "follow_up", "recording"] },
+    "status": { "type": "string", "enum": ["draft", "published", "live", "finished", "cancelled"], "default": "draft" },
+    "start_at": { "type": "string", "format": "date-time" },
+    "duration_minutes": { "type": "integer", "minimum": 1, "maximum": 1440 },
+    "teacher_name": { "type": "string", "maxLength": 160 },
+    "teacher_user_id": { "type": "string" },
+    "meeting_url": { "type": "string", "maxLength": 1000 },
+    "recording_url": { "type": "string", "maxLength": 1000 },
+    "cover_url": { "type": "string", "maxLength": 1000 },
+    "access": { "type": "string", "enum": ["all_members", "enrolled", "invite_only"], "default": "all_members" }
+  },
+  "required": ["organization_id", "title", "session_type", "status", "start_at"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
