@@ -160,7 +160,7 @@ export default function App() {
 
   function handleTenantCreated(tenant) {
     setRequestedOrganizationId(tenant.id);
-    recordAudit("create.organization", "organization", tenant.id);
+    recordAudit("create.organization", "organization", tenant.id, tenant.id);
   }
 
   function handleMemberChanged(member) {
