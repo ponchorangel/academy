@@ -151,6 +151,13 @@ export default function App() {
     if (payload?.enrollment) setEnrollments((current) => [...current.filter((item) => item.id !== payload.enrollment.id), payload.enrollment]);
   }
 
+  async function openDownload(download) {
+    if (download.file_type === "link" && /^https:\/\//i.test(download.file_uri || "")) { window.open(download.file_uri, "_blank", "noopener,noreferrer"); return; }
+    const result = await base44.functions.invoke("academyFileAccess", { organization_id: academyContext?.organization?.id, download_id: download.id });
+    const payload = result?.data || result;
+    if (payload?.signed_url) window.open(payload.signed_url, "_blank", "noopener,noreferrer");
+  }
+
   async function handleArchived(type, id) {
     const organizationId = academyContext?.organization?.id;
     if (!organizationId || !id) return;
@@ -188,13 +195,14 @@ export default function App() {
       {mobileMenu && <nav className="mobile-nav">{navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
 
       <main className="content">
-        {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} loading={loading} onNavigate={navigate} organization={academyContext?.organization} />}
+        {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} loading={loading} onNavigate={navigate} organization={academyContext?.organization} onDownload={openDownload} />}
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "cursos" && <CollectionView title="Cursos" eyebrow="RUTAS DE APRENDIZAJE" description="Avanza por cursos estructurados a tu ritmo." icon={BookOpen}>{courses.length ? <div className="session-grid">{courses.map((course) => <CourseCard key={course.id} course={course} onOpen={() => { setSelectedCourseId(course.id); navigate("curso"); }} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los cursos de tu Academy." />}</CollectionView>}
         {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} enrollment={enrollments.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} progress={lessonProgress} certificate={certificates.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} organizationId={academyContext?.organization?.id} onEnroll={enrollInCourse} onCompleteLesson={completeLesson} onBack={() => navigate("cursos")} />}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
-        {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} />)}</div></CollectionView>}
+        {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} onOpen={() => openDownload(download)} />)}</div></CollectionView>}
         {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
+        {activeView === "administracion" && <SecureDownloadUploader organization={academyContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
       </main>
     </div>
   );
@@ -241,14 +249,14 @@ function PublicCertificateView({ certificateNumber }) {
   return <div className="certificate-page"><article className="certificate-print"><div className="certificate-logo"><ScalariaMark /></div><p className="eyebrow">ACADEMY BY SCALARIA</p><p className="certificate-kicker">CERTIFICADO DE FINALIZACIÓN</p><h1>{certificate.course_title}</h1><p className="certificate-award">Se reconoce que</p><h2>{certificate.student_name || "Alumno de Academy"}</h2><p className="certificate-copy">ha completado satisfactoriamente la ruta de aprendizaje y sus evaluaciones correspondientes.</p><div className="certificate-meta"><span>Folio<strong>{certificate.certificate_number}</strong></span><span>Emitido<strong>{formatDate(certificate.issued_at)}</strong></span></div><div className="certificate-actions"><button className="primary-button" onClick={() => window.print()}>Guardar como PDF</button><a className="secondary-button" href="/">Volver a Academy</a></div><p className="certificate-valid">✓ Certificado validado por Academy by Scalaria</p></article></div>;
 }
 
-function HomeView({ firstName, nextSession, sessions, downloads, events, loading, onNavigate, organization }) {
+function HomeView({ firstName, nextSession, sessions, downloads, events, loading, onNavigate, organization, onDownload }) {
   return <>
     <section className="welcome-panel">
       <div><p className="eyebrow">{organization?.display_name || "ACADEMY"}</p><h1>Hola, {firstName}.</h1><p className="welcome-copy">Aquí encontrarás tus sesiones, talleres, webinars y recursos para tomar mejores decisiones con acompañamiento profesional.</p></div>
       <div className="welcome-orbit"><GraduationCap size={54} strokeWidth={1.2} /><span>Aprender<br />transforma.</span></div>
     </section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">TU PRÓXIMO PASO</p><h2>Continúa aprendiendo</h2></div><button className="text-link" onClick={() => onNavigate("sesiones")}>Ver todas <ChevronRight size={16} /></button></div>{loading ? <div className="loading-card">Cargando tu Academy...</div> : <div className="session-grid"><SessionCard session={nextSession || sessions[0]} featured /></div>}</section>
-    <section className="section-block"><div className="section-heading"><div><p className="eyebrow">RECURSOS</p><h2>Para llevar contigo</h2></div><button className="text-link" onClick={() => onNavigate("descargables")}>Ver biblioteca <ChevronRight size={16} /></button></div><div className="download-list compact">{downloads.slice(0, 2).map((download) => <DownloadRow key={download.id} download={download} />)}</div></section>
+    <section className="section-block"><div className="section-heading"><div><p className="eyebrow">RECURSOS</p><h2>Para llevar contigo</h2></div><button className="text-link" onClick={() => onNavigate("descargables")}>Ver biblioteca <ChevronRight size={16} /></button></div><div className="download-list compact">{downloads.slice(0, 2).map((download) => <DownloadRow key={download.id} download={download} onOpen={() => onDownload(download)} />)}</div></section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">ENCUENTROS EN VIVO</p><h2>Próximos webinars</h2></div><button className="text-link" onClick={() => onNavigate("eventos")}>Ver eventos <ChevronRight size={16} /></button></div><div className="session-grid">{events.slice(0, 3).map((event) => <EventCard key={event.id} event={event} />)}</div></section>
   </>;
 }
@@ -297,6 +305,29 @@ function QuizPlayer({ lesson, organizationId, onPassed }) {
   return <form className="quiz-box" onSubmit={submit}><div className="quiz-heading"><strong>Evaluación</strong><span>Aprueba con 70%</span></div>{questions.length ? questions.sort((a, b) => a.order - b.order).map((question, index) => <fieldset className="quiz-question" key={question.id}><legend>{index + 1}. {question.prompt}</legend>{question.options.map((option, optionIndex) => <label key={option}><input type="radio" name={question.id} checked={answers[index] === optionIndex} onChange={() => setAnswers((current) => { const next = [...current]; next[index] = optionIndex; return next; })} required />{option}</label>)}</fieldset>) : <p className="panel-note">Esta evaluación todavía no tiene preguntas.</p>}<button className="primary-button" disabled={status === "saving" || !questions.length}>{status === "saving" ? "Calificando..." : "Enviar evaluación"}</button>{result && <div className={`quiz-result ${result.passed ? "passed" : "failed"}`}><strong>{result.score}%</strong><span>{result.passed ? "Aprobada. Lección completada." : "Aún no aprobada. Puedes intentarlo nuevamente."}</span></div>}</form>;
 }
 
+function SecureDownloadUploader({ organization, onSaved }) {
+  const [form, setForm] = useState({ title: "", description: "", category: "Guías" });
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState("idle");
+  async function submit(event) {
+    event.preventDefault();
+    if (!file) { setStatus("error"); return; }
+    const allowed = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "text/plain"];
+    if (file.size > 20 * 1024 * 1024 || !allowed.includes(file.type)) { setStatus("error"); return; }
+    setStatus("uploading");
+    try {
+      const uploaded = await base44.integrations.Core.UploadPrivateFile({ file });
+      const fileType = file.name.split(".").pop()?.toLowerCase() || "archivo";
+      const result = await base44.functions.invoke("academyContentMutation", { action: "create", type: "download", organization_id: organization?.id, data: { ...form, file_type: fileType, file_uri: uploaded.file_uri, status: "published", access: "all_members" } });
+      const payload = result?.data || result;
+      if (payload?.error) throw new Error(payload.error);
+      onSaved(payload.item);
+      setForm({ title: "", description: "", category: "Guías" }); setFile(null); setStatus("saved"); event.target.reset();
+    } catch { setStatus("error"); }
+  }
+  return <section className="admin-panel secure-upload-panel"><div className="admin-panel-heading"><div><p className="eyebrow">BIBLIOTECA PRIVADA</p><h3>Subir descargable seguro</h3></div><span className="panel-note">Máximo 20 MB</span></div><form className="admin-form" onSubmit={submit}><label>Título<input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required /></label><label>Categoría<input value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} /></label><label>Descripción<textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows="2" /></label><label>Archivo privado<input type="file" accept=".pdf,.docx,.xlsx,.pptx,.txt" onChange={(event) => setFile(event.target.files?.[0] || null)} required /><span className="panel-note">PDF, Word, Excel, PowerPoint o TXT. El archivo se entrega mediante enlace temporal.</span></label><div className="form-actions"><button className="primary-button" disabled={status === "uploading"}>{status === "uploading" ? "Subiendo..." : "Subir y publicar"}</button>{status === "saved" && <span className="form-success">Publicado</span>}{status === "error" && <span className="form-error">Revisa el archivo e inténtalo nuevamente</span>}</div></form></section>;
+}
+
 function CourseDetailView({ course, modules, lessons, enrollment, progress, certificate, organizationId, onEnroll, onCompleteLesson, onBack }) {
   const [status, setStatus] = useState("idle");
   if (!course) return <EmptyState title="Curso no encontrado" text="Regresa a Cursos para elegir otra ruta." />;
@@ -307,8 +338,8 @@ function CourseDetailView({ course, modules, lessons, enrollment, progress, cert
   return <section className="course-detail"><button className="text-link" onClick={onBack}><ChevronRight size={16} className="back-icon" /> Volver a cursos</button><div className="course-detail-heading"><p className="eyebrow">CURSO · {course.category || "RUTA DE APRENDIZAJE"}</p><h1>{course.title}</h1><p>{course.description || "Un recorrido estructurado para aprender paso a paso."}</p>{enrollment ? <div className="progress-summary"><div><strong>{enrollment.progress_percent || 0}%</strong><span>de avance</span></div><div className="progress-track"><span style={{ width: `${enrollment.progress_percent || 0}%` }} /></div><small>{enrollment.status === "completed" ? "Curso completado" : "Continúa con tu siguiente lección"}</small></div> : <button className="primary-button" onClick={enroll} disabled={status === "saving"}>{status === "saving" ? "Inscribiendo..." : "Inscribirme al curso"}</button>}{certificate && <div className="certificate-card"><GraduationCap size={24} /><div><strong>Certificado disponible</strong><span>{certificate.certificate_number} · {formatDate(certificate.issued_at)}</span></div><a className="secondary-button" href={`?certificate=${encodeURIComponent(certificate.certificate_number)}`} target="_blank" rel="noreferrer">Ver certificado</a></div>}{status === "error" && <span className="form-error">No se pudo actualizar tu inscripción.</span>}</div>{courseModules.length ? <div className="course-outline">{courseModules.map((module) => { const moduleLessons = lessons.filter((lesson) => lesson.module_id === module.id).sort((a, b) => a.order - b.order); return <article className="module-row" key={module.id}><div><span className="module-number">{String(module.order + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{module.description || "Módulo de aprendizaje"}</p></div></div><div className="lesson-list">{moduleLessons.length ? moduleLessons.map((lesson) => <div key={lesson.id}><div className={`lesson-row ${completedLessons.has(lesson.id) ? "completed" : ""}`}><button className="lesson-complete" onClick={() => enrollment && !completedLessons.has(lesson.id) && complete(lesson.id)} disabled={!enrollment || completedLessons.has(lesson.id) || status === "saving"} aria-label={completedLessons.has(lesson.id) ? "Lección completada" : "Marcar lección como completada"}>{completedLessons.has(lesson.id) ? "✓" : "○"}</button><span>{lesson.title}</span><small>{lesson.duration_minutes ? `${lesson.duration_minutes} min` : lesson.lesson_type || "Lección"}</small></div>{enrollment && lesson.lesson_type === "video" && <VideoPlayer lesson={lesson} />}{enrollment && lesson.lesson_type === "quiz" && <QuizPlayer lesson={lesson} organizationId={organizationId} onPassed={onCompleteLesson} />}</div>) : <span className="panel-note">Próximamente se publicarán las lecciones de este módulo.</span>}</div></article>; })}</div> : <EmptyState title="Contenido en preparación" text="Este curso todavía no tiene módulos publicados." />}</section>;
 }
 
-function DownloadRow({ download }) {
-  return <article className="download-row"><span className="download-icon"><BookOpen size={19} /></span><div className="download-info"><strong>{download.title}</strong><span>{download.category} · {download.format}</span></div><button className="download-action" aria-label={`Descargar ${download.title}`}><Download size={17} /></button></article>;
+function DownloadRow({ download, onOpen }) {
+  return <article className="download-row"><span className="download-icon"><BookOpen size={19} /></span><div className="download-info"><strong>{download.title}</strong><span>{download.category} · {download.format}</span></div><button className="download-action" onClick={onOpen} aria-label={`Abrir ${download.title}`}><Download size={17} /></button></article>;
 }
 
 function EmptyState({ title, text }) {

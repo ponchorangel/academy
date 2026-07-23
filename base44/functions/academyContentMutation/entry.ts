@@ -75,6 +75,11 @@ Deno.serve(async (req) => {
       data.description = cleanText(data.description, 2000);
       data.category = cleanText(data.category, 80);
       data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
+      if (data.file_type === 'link') {
+        if (data.file_uri && !/^https:\/\//i.test(data.file_uri)) return response({ error: 'secure_link_required' }, 400);
+      } else if (data.file_uri && !data.file_uri.startsWith('private/')) {
+        return response({ error: 'private_file_required' }, 400);
+      }
     }
     if (type === 'event') {
       data.description = cleanText(data.description, 3000);

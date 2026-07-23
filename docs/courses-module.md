@@ -15,6 +15,7 @@ Academy incorpora cursos como una ruta de aprendizaje estructurada, independient
 - Evaluaciones tipo quiz con preguntas, opciones, calificación mínima de 70% y avance al aprobar.
 - Certificado automático con folio al completar todas las lecciones.
 - Página pública de validación y vista imprimible del certificado.
+- Materiales privados con enlaces firmados de cinco minutos para alumnos autorizados.
 - Vista de cursos para alumnos y mención del módulo en la landing pública.
 
 Las entidades `AcademyCourseModule` y `AcademyCourseLesson` dejan preparada la relación curso → módulos → lecciones. `AcademyCourseEnrollment` y `AcademyLessonProgress` registran la inscripción y el avance del alumno. `AcademyQuizQuestion` y `AcademyQuizAttempt` gestionan evaluaciones y calificaciones; queda pendiente la carga segura de archivos.
