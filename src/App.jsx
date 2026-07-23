@@ -16,8 +16,8 @@ import {
 import { base44 } from "@/api/base44Client";
 
 const demoSessions = [
-  { id: "session-1", title: "Hábitos financieros que sí se sostienen", type: "Taller", date: "Jueves 23 de julio", time: "18:00 h", teacher: "Guardián Financiero", status: "Próxima", color: "mint" },
-  { id: "session-2", title: "Preguntas y respuestas: seguros", type: "Sesión en vivo", date: "Martes 28 de julio", time: "19:00 h", teacher: "Equipo Guardián", status: "Próxima", color: "blue" },
+  { id: "session-1", title: "Hábitos que sí se sostienen", type: "Taller", date: "Jueves 23 de julio", time: "18:00 h", teacher: "Equipo Academy", status: "Próxima", color: "mint" },
+  { id: "session-2", title: "Preguntas y respuestas: decisiones financieras", type: "Sesión en vivo", date: "Martes 28 de julio", time: "19:00 h", teacher: "Equipo Academy", status: "Próxima", color: "blue" },
   { id: "session-3", title: "Introducción a tu panel financiero", type: "Grabación", date: "Disponible ahora", time: "42 min", teacher: "Academy", status: "Disponible", color: "sand" },
 ];
 
@@ -75,7 +75,7 @@ export default function App() {
     return () => { alive = false; };
   }, []);
 
-  const firstName = user?.full_name?.split(" ")[0] || "Guardián";
+  const firstName = user?.full_name?.split(" ")[0] || "estudiante";
   const nextSession = useMemo(() => sessions.find((session) => session.status === "Próxima"), [sessions]);
 
   function navigate(view) {
@@ -97,7 +97,7 @@ export default function App() {
           {academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}
         </nav>
         <div className="topbar-actions">
-          <span className="tenant-name">{academyContext?.organization?.display_name || "Guardián Financiero"}</span>
+          <span className="tenant-name">{academyContext?.organization?.display_name || "Academy"}</span>
           {user ? <div className="avatar">{firstName.slice(0, 1)}</div> : <button className="sign-in" onClick={() => base44.auth.redirectToLogin() }><LogIn size={16} /> Entrar</button>}
           <button className="mobile-menu-button" onClick={() => setMobileMenu((value) => !value)} aria-label="Abrir menú">{mobileMenu ? <X /> : <Menu />}</button>
         </div>
@@ -132,7 +132,7 @@ function PublicLanding({ onSignIn }) {
     <main>
       <section className="public-hero"><div className="public-hero-copy"><p className="eyebrow">PLATAFORMA DE CAPACITACIÓN</p><h1>Aprende lo que necesitas para avanzar.</h1><p>Academy reúne sesiones, talleres, webinars y recursos en un espacio claro para que cada escuela, academia o empresa pueda formar a su comunidad.</p><div className="hero-actions"><button className="primary-button" onClick={onSignIn}>Entrar a mi Academy <ChevronRight size={17} /></button><a href="#modulos" className="text-link light">Conocer los módulos <ChevronRight size={16} /></a></div></div><div className="hero-card"><div className="hero-card-header"><span className="status-dot" /> Academy activa</div><div className="hero-card-title">Tu aprendizaje,<br /><strong>en un solo lugar.</strong></div><div className="hero-mini-row"><span><CalendarDays size={16} /> Sesiones</span><span><Video size={16} /> Webinars</span></div><div className="hero-mini-row"><span><Download size={16} /> Recursos</span><span><Users size={16} /> Comunidad</span></div></div></section>
       <section className="public-section" id="modulos"><div className="public-section-heading"><p className="eyebrow">TODO LO QUE NECESITAS</p><h2>Una experiencia de aprendizaje simple y práctica.</h2><p>Academy puede personalizarse para cada cliente, con su identidad, sus facilitadores y sus alumnos.</p></div><div className="module-grid">{modules.map(({ icon: Icon, title, text }) => <article className="module-card" key={title}><span className="module-icon"><Icon size={22} /></span><h3>{title}</h3><p>{text}</p><span className="module-arrow"><ChevronRight size={17} /></span></article>)}</div></section>
-      <section className="public-section split-section"><div><p className="eyebrow">DISEÑADA PARA CRECER</p><h2>Tu Academy, con la identidad de tu organización.</h2><p className="public-body">Cada cliente puede tener su propia marca, módulos y comunidad dentro de la misma plataforma. Guardián Financiero es la primera Academy; después podrá crecer para coaches, consultores, promotorías y empresas.</p></div><div className="steps-card"><div><span>01</span><strong>Publica</strong><small>sesiones y recursos</small></div><div><span>02</span><strong>Conecta</strong><small>con tu comunidad</small></div><div><span>03</span><strong>Acompaña</strong><small>el progreso</small></div></div></section>
+      <section className="public-section split-section"><div><p className="eyebrow">DISEÑADA PARA CRECER</p><h2>Tu Academy, con la identidad de tu organización.</h2><p className="public-body">Cada cliente puede tener su propia marca, módulos y comunidad dentro de la misma plataforma. Academy está preparada para coaches, consultores, escuelas, academias y empresas.</p></div><div className="steps-card"><div><span>01</span><strong>Publica</strong><small>sesiones y recursos</small></div><div><span>02</span><strong>Conecta</strong><small>con tu comunidad</small></div><div><span>03</span><strong>Acompaña</strong><small>el progreso</small></div></div></section>
       <section className="public-cta"><p className="eyebrow">ACADEMY</p><h2>El conocimiento también se construye acompañado.</h2><button className="primary-button" onClick={onSignIn}>Entrar a mi Academy <ChevronRight size={17} /></button></section>
     </main>
     <footer className="public-footer"><span>Academy by Scalaria</span><span>Plataforma de capacitación multiempresa</span></footer>
@@ -142,7 +142,7 @@ function PublicLanding({ onSignIn }) {
 function HomeView({ firstName, nextSession, sessions, downloads, events, loading, onNavigate, organization }) {
   return <>
     <section className="welcome-panel">
-      <div><p className="eyebrow">{organization?.display_name || "ACADEMY GUARDIÁN FINANCIERO"}</p><h1>Hola, {firstName}.</h1><p className="welcome-copy">Aquí encontrarás tus sesiones, talleres, webinars y recursos para tomar mejores decisiones con acompañamiento profesional.</p></div>
+      <div><p className="eyebrow">{organization?.display_name || "ACADEMY"}</p><h1>Hola, {firstName}.</h1><p className="welcome-copy">Aquí encontrarás tus sesiones, talleres, webinars y recursos para tomar mejores decisiones con acompañamiento profesional.</p></div>
       <div className="welcome-orbit"><GraduationCap size={54} strokeWidth={1.2} /><span>Aprender<br />transforma.</span></div>
     </section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">TU PRÓXIMO PASO</p><h2>Continúa aprendiendo</h2></div><button className="text-link" onClick={() => onNavigate("sesiones")}>Ver todas <ChevronRight size={16} /></button></div>{loading ? <div className="loading-card">Cargando tu Academy...</div> : <div className="session-grid"><SessionCard session={nextSession || sessions[0]} featured /></div>}</section>
@@ -175,7 +175,7 @@ function EmptyState({ title, text }) {
 function AdminView({ context, sessions, downloads, events }) {
   const organization = context?.organization;
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
-    <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Guardián Financiero"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
+    <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
     <div className="admin-roadmap"><p className="eyebrow">SIGUIENTE BLOQUE</p><h3>Crear y editar contenido</h3><p>La estructura de permisos ya está conectada. El siguiente paso de operación será agregar formularios para publicar sesiones, recursos y webinars desde este panel.</p></div>
   </CollectionView>;

@@ -1,6 +1,6 @@
 # Academy
 
-Plataforma independiente y multiempresa de capacitación. Guardián Financiero es el primer tenant; la app está diseñada para crecer como producto SaaS de Scalaria.
+Plataforma independiente y multiempresa de capacitación. Academy by Scalaria está diseñada para crecer como producto SaaS para escuelas, academias, coaches, consultores y empresas.
 
 ## MVP actual
 
@@ -36,4 +36,4 @@ La publicación utiliza el proyecto vinculado en `base44/.app.jsonc`. No se debe
 2. Paneles separados para superadmin, administrador, maestro y alumno.
 3. CRUD de sesiones, eventos y descargables.
 4. Inscripción, asistencia, grabaciones y notificaciones.
-5. Migración selectiva desde Tiendup y conexión con `academy.guardianfinanciero.com`.
+5. Migración selectiva desde plataformas educativas anteriores y conexión de dominios de clientes.

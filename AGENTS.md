@@ -2,7 +2,7 @@
 
 ## Contexto de la aplicación
 
-Academy es una plataforma educativa multiempresa. El primer cliente es Guardián Financiero, pero la arquitectura, el contenido y la identidad deben permanecer neutrales y configurables por organización.
+Academy es una plataforma educativa multiempresa de Academy by Scalaria. La arquitectura, el contenido y la identidad deben permanecer neutrales y configurables por organización.
 
 Roles del producto: `superadmin`, `organization_admin`, `teacher`, `student` y `guest`.
 
