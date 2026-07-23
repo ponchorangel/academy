@@ -6,7 +6,7 @@
     "organization_id": { "type": "string" },
     "email": { "type": "string", "maxLength": 254 },
     "display_name": { "type": "string", "maxLength": 160 },
-    "role": { "type": "string", "enum": ["student", "teacher"] },
+    "role": { "type": "string", "enum": ["organization_admin", "student", "teacher"] },
     "status": { "type": "string", "enum": ["pending", "accepted", "cancelled", "expired"], "default": "pending" },
     "invited_by_user_id": { "type": "string" },
     "accepted_user_id": { "type": "string" },

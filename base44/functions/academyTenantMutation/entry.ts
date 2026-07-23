@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { safeText } from './_shared/security.js';
+import { emailIsValid, safeText } from './_shared/security.js';
 
 const MODULES = new Set(['sessions', 'courses', 'downloads', 'events', 'facilitators', 'students']);
 const STATUSES = new Set(['active', 'paused', 'archived']);
@@ -34,8 +34,10 @@ Deno.serve(async (req) => {
       const slug = safeText(input.slug, 80).toLowerCase();
       const name = safeText(input.name, 160);
       const displayName = safeText(input.display_name || input.name, 160);
+      const adminEmail = safeText(input.admin_email, 254).toLowerCase();
+      const adminDisplayName = safeText(input.admin_display_name, 160);
       const primaryColor = safeText(input.primary_color || '#6B4EFF', 7);
-      if (!slugIsValid(slug) || !name || !displayName || !/^#[0-9a-fA-F]{6}$/.test(primaryColor)) return response({ error: 'invalid_tenant' }, 400);
+      if (!slugIsValid(slug) || !name || !displayName || !emailIsValid(adminEmail) || !adminDisplayName || !/^#[0-9a-fA-F]{6}$/.test(primaryColor)) return response({ error: 'invalid_tenant' }, 400);
       const duplicate = await base44.asServiceRole.entities.AcademyOrganization.filter({ slug });
       if (duplicate.length) return response({ error: 'slug_in_use' }, 409);
       const organization = await base44.asServiceRole.entities.AcademyOrganization.create({
@@ -49,7 +51,14 @@ Deno.serve(async (req) => {
         custom_domain: safeText(input.custom_domain, 255),
         welcome_message: safeText(input.welcome_message, 1000),
       });
-      return response({ organization });
+      try {
+        await base44.asServiceRole.users.inviteUser(adminEmail, 'user');
+        const invitation = await base44.asServiceRole.entities.AcademyInvitation.create({ organization_id: organization.id, email: adminEmail, display_name: adminDisplayName, role: 'organization_admin', status: 'pending', invited_by_user_id: user.id, invited_at: new Date().toISOString() });
+        return response({ organization, invitation });
+      } catch (_error) {
+        await base44.asServiceRole.entities.AcademyOrganization.update(organization.id, { status: 'archived' }).catch(() => null);
+        return response({ error: 'admin_invitation_failed' }, 502);
+      }
     }
 
     const organizationId = safeText(input.organization_id, 100);
