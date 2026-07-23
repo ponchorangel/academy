@@ -57,6 +57,7 @@ export default function App() {
   const [enrollments, setEnrollments] = useState([]);
   const [lessonProgress, setLessonProgress] = useState([]);
   const [certificates, setCertificates] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [facilitators, setFacilitators] = useState([]);
   const [members, setMembers] = useState([]);
@@ -86,6 +87,7 @@ export default function App() {
       const remoteEnrollments = context?.content?.enrollments || [];
       const remoteLessonProgress = context?.content?.lesson_progress || [];
       const remoteCertificates = context?.content?.certificates || [];
+      const remoteRegistrations = context?.content?.registrations || [];
       if (remoteSessions.length) setSessions(remoteSessions.map((item) => ({ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", teacher: item.teacher_name || "Academy", color: "mint" })));
       if (remoteDownloads.length) setDownloads(remoteDownloads.map((item) => ({ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" })));
       if (remoteEvents.length) setEvents(remoteEvents);
@@ -99,6 +101,7 @@ export default function App() {
       setEnrollments(remoteEnrollments);
       setLessonProgress(remoteLessonProgress);
       setCertificates(remoteCertificates);
+      setRegistrations(remoteRegistrations);
       setLoading(false);
     }
     loadAcademy();
@@ -158,6 +161,18 @@ export default function App() {
     if (payload?.signed_url) window.open(payload.signed_url, "_blank", "noopener,noreferrer");
   }
 
+  async function registerFor(resourceType, resourceId) {
+    const result = await base44.functions.invoke("academyRegistrationMutation", { action: "register", organization_id: academyContext?.organization?.id, resource_type: resourceType, resource_id: resourceId });
+    const payload = result?.data || result;
+    if (payload?.registration) setRegistrations((current) => [...current.filter((item) => item.id !== payload.registration.id), payload.registration]);
+  }
+
+  async function updateAttendance(registration, status = "attended") {
+    const result = await base44.functions.invoke("academyRegistrationMutation", { action: "attendance", organization_id: academyContext?.organization?.id, resource_type: registration.resource_type, resource_id: registration.resource_id, registration_id: registration.id, status });
+    const payload = result?.data || result;
+    if (payload?.registration) setRegistrations((current) => current.map((item) => item.id === payload.registration.id ? payload.registration : item));
+  }
+
   async function handleArchived(type, id) {
     const organizationId = academyContext?.organization?.id;
     if (!organizationId || !id) return;
@@ -195,14 +210,15 @@ export default function App() {
       {mobileMenu && <nav className="mobile-nav">{navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
 
       <main className="content">
-        {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} loading={loading} onNavigate={navigate} organization={academyContext?.organization} onDownload={openDownload} />}
+        {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} registrations={registrations} loading={loading} onNavigate={navigate} organization={academyContext?.organization} onDownload={openDownload} onRegister={(id) => registerFor("event", id)} />}
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "cursos" && <CollectionView title="Cursos" eyebrow="RUTAS DE APRENDIZAJE" description="Avanza por cursos estructurados a tu ritmo." icon={BookOpen}>{courses.length ? <div className="session-grid">{courses.map((course) => <CourseCard key={course.id} course={course} onOpen={() => { setSelectedCourseId(course.id); navigate("curso"); }} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los cursos de tu Academy." />}</CollectionView>}
         {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} enrollment={enrollments.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} progress={lessonProgress} certificate={certificates.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} organizationId={academyContext?.organization?.id} onEnroll={enrollInCourse} onCompleteLesson={completeLesson} onBack={() => navigate("cursos")} />}
-        {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
+        {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} registration={registrations.find((item) => item.resource_id === event.id)} onRegister={() => registerFor("event", event.id)} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} onOpen={() => openDownload(download)} />)}</div></CollectionView>}
         {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
         {activeView === "administracion" && <SecureDownloadUploader organization={academyContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
+        {activeView === "administracion" && <RegistrationManager events={events} registrations={registrations} onAttendance={updateAttendance} />}
       </main>
     </div>
   );
@@ -249,7 +265,7 @@ function PublicCertificateView({ certificateNumber }) {
   return <div className="certificate-page"><article className="certificate-print"><div className="certificate-logo"><ScalariaMark /></div><p className="eyebrow">ACADEMY BY SCALARIA</p><p className="certificate-kicker">CERTIFICADO DE FINALIZACIÓN</p><h1>{certificate.course_title}</h1><p className="certificate-award">Se reconoce que</p><h2>{certificate.student_name || "Alumno de Academy"}</h2><p className="certificate-copy">ha completado satisfactoriamente la ruta de aprendizaje y sus evaluaciones correspondientes.</p><div className="certificate-meta"><span>Folio<strong>{certificate.certificate_number}</strong></span><span>Emitido<strong>{formatDate(certificate.issued_at)}</strong></span></div><div className="certificate-actions"><button className="primary-button" onClick={() => window.print()}>Guardar como PDF</button><a className="secondary-button" href="/">Volver a Academy</a></div><p className="certificate-valid">✓ Certificado validado por Academy by Scalaria</p></article></div>;
 }
 
-function HomeView({ firstName, nextSession, sessions, downloads, events, loading, onNavigate, organization, onDownload }) {
+function HomeView({ firstName, nextSession, sessions, downloads, events, registrations, loading, onNavigate, organization, onDownload, onRegister }) {
   return <>
     <section className="welcome-panel">
       <div><p className="eyebrow">{organization?.display_name || "ACADEMY"}</p><h1>Hola, {firstName}.</h1><p className="welcome-copy">Aquí encontrarás tus sesiones, talleres, webinars y recursos para tomar mejores decisiones con acompañamiento profesional.</p></div>
@@ -257,7 +273,7 @@ function HomeView({ firstName, nextSession, sessions, downloads, events, loading
     </section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">TU PRÓXIMO PASO</p><h2>Continúa aprendiendo</h2></div><button className="text-link" onClick={() => onNavigate("sesiones")}>Ver todas <ChevronRight size={16} /></button></div>{loading ? <div className="loading-card">Cargando tu Academy...</div> : <div className="session-grid"><SessionCard session={nextSession || sessions[0]} featured /></div>}</section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">RECURSOS</p><h2>Para llevar contigo</h2></div><button className="text-link" onClick={() => onNavigate("descargables")}>Ver biblioteca <ChevronRight size={16} /></button></div><div className="download-list compact">{downloads.slice(0, 2).map((download) => <DownloadRow key={download.id} download={download} onOpen={() => onDownload(download)} />)}</div></section>
-    <section className="section-block"><div className="section-heading"><div><p className="eyebrow">ENCUENTROS EN VIVO</p><h2>Próximos webinars</h2></div><button className="text-link" onClick={() => onNavigate("eventos")}>Ver eventos <ChevronRight size={16} /></button></div><div className="session-grid">{events.slice(0, 3).map((event) => <EventCard key={event.id} event={event} />)}</div></section>
+    <section className="section-block"><div className="section-heading"><div><p className="eyebrow">ENCUENTROS EN VIVO</p><h2>Próximos webinars</h2></div><button className="text-link" onClick={() => onNavigate("eventos")}>Ver eventos <ChevronRight size={16} /></button></div><div className="session-grid">{events.slice(0, 3).map((event) => <EventCard key={event.id} event={event} registration={registrations.find((item) => item.resource_id === event.id)} onRegister={() => onRegister(event.id)} />)}</div></section>
   </>;
 }
 
@@ -270,8 +286,9 @@ function SessionCard({ session, featured }) {
   return <article className={`session-card ${featured ? "featured" : ""} ${session.color || "mint"}`}><div className="session-card-top"><span className="badge">{session.status}</span><span className="session-type">{session.type}</span></div><div className="session-card-body"><h3>{session.title}</h3><p className="session-meta"><CalendarDays size={15} /> {session.date} · {session.time}</p><p className="session-meta"><Users size={15} /> {session.teacher}</p></div><button className="card-action">{session.status === "Disponible" ? "Ver grabación" : "Ver sesión"} <ChevronRight size={16} /></button></article>;
 }
 
-function EventCard({ event }) {
-  return <article className="event-card"><span className="badge">{event.status || "Próximo"}</span><h3>{event.title}</h3><p>{event.description || "Evento de Academy"}</p><p className="session-meta"><CalendarDays size={15} /> {formatDate(event.start_at)}</p><button className="card-action">Ver evento <ChevronRight size={16} /></button></article>;
+function EventCard({ event, registration, onRegister }) {
+  const registered = registration?.status === "registered" || registration?.status === "attended";
+  return <article className="event-card"><span className="badge">{event.status || "Próximo"}</span><h3>{event.title}</h3><p>{event.description || "Evento de Academy"}</p><p className="session-meta"><CalendarDays size={15} /> {formatDate(event.start_at)}</p><button className="card-action" onClick={onRegister} disabled={registered}>{registered ? "Registrado" : "Registrarme"} <ChevronRight size={16} /></button></article>;
 }
 
 function CourseCard({ course, onOpen }) {
@@ -326,6 +343,10 @@ function SecureDownloadUploader({ organization, onSaved }) {
     } catch { setStatus("error"); }
   }
   return <section className="admin-panel secure-upload-panel"><div className="admin-panel-heading"><div><p className="eyebrow">BIBLIOTECA PRIVADA</p><h3>Subir descargable seguro</h3></div><span className="panel-note">Máximo 20 MB</span></div><form className="admin-form" onSubmit={submit}><label>Título<input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required /></label><label>Categoría<input value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} /></label><label>Descripción<textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows="2" /></label><label>Archivo privado<input type="file" accept=".pdf,.docx,.xlsx,.pptx,.txt" onChange={(event) => setFile(event.target.files?.[0] || null)} required /><span className="panel-note">PDF, Word, Excel, PowerPoint o TXT. El archivo se entrega mediante enlace temporal.</span></label><div className="form-actions"><button className="primary-button" disabled={status === "uploading"}>{status === "uploading" ? "Subiendo..." : "Subir y publicar"}</button>{status === "saved" && <span className="form-success">Publicado</span>}{status === "error" && <span className="form-error">Revisa el archivo e inténtalo nuevamente</span>}</div></form></section>;
+}
+
+function RegistrationManager({ events, registrations, onAttendance }) {
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">EVENTOS Y ASISTENCIA</p><h3>Registros de eventos</h3></div><span className="panel-note">{registrations.length} registros</span></div>{registrations.length ? <div className="operation-list">{registrations.map((registration) => { const event = events.find((item) => item.id === registration.resource_id); return <article className="operation-row" key={registration.id}><div><strong>{event?.title || "Evento"}</strong><span>{registration.email || "Alumno"} · {registration.status}</span></div><div className="operation-actions"><button className="edit-button" onClick={() => onAttendance(registration, registration.status === "attended" ? "registered" : "attended")}>{registration.status === "attended" ? "Quitar asistencia" : "Marcar asistencia"}</button></div></article>; })}</div> : <div className="empty-state compact-empty"><Video size={24} /><p>Aún no hay registros de eventos.</p></div>}</section>;
 }
 
 function CourseDetailView({ course, modules, lessons, enrollment, progress, certificate, organizationId, onEnroll, onCompleteLesson, onBack }) {
