@@ -46,22 +46,24 @@ export default function App() {
   const [sessions, setSessions] = useState(demoSessions);
   const [downloads, setDownloads] = useState(demoDownloads);
   const [events, setEvents] = useState([]);
+  const [academyContext, setAcademyContext] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     async function loadAcademy() {
-      const [currentUser, remoteSessions, remoteDownloads, remoteEvents] = await Promise.all([
-        base44.auth.me().catch(() => null),
-        base44.entities.AcademySession?.list?.("start_at", 6).catch(() => []),
-        base44.entities.AcademyDownload?.list?.("created_date", 6).catch(() => []),
-        base44.entities.AcademyEvent?.list?.("start_at", 6).catch(() => []),
-      ]);
+      const currentUser = await base44.auth.me().catch(() => null);
+      const contextResponse = currentUser ? await base44.functions.invoke("getAcademyContext", {}).catch(() => null) : null;
+      const context = contextResponse?.data || contextResponse;
       if (!alive) return;
-      setUser(currentUser);
-      if (remoteSessions?.length) setSessions(remoteSessions.map((item) => ({ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", color: "mint" })));
-      if (remoteDownloads?.length) setDownloads(remoteDownloads.map((item) => ({ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" })));
-      if (remoteEvents?.length) setEvents(remoteEvents);
+      setUser(context?.user || currentUser);
+      setAcademyContext(context);
+      const remoteSessions = context?.content?.sessions || [];
+      const remoteDownloads = context?.content?.downloads || [];
+      const remoteEvents = context?.content?.events || [];
+      if (remoteSessions.length) setSessions(remoteSessions.map((item) => ({ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", teacher: item.teacher_name || "Academy", color: "mint" })));
+      if (remoteDownloads.length) setDownloads(remoteDownloads.map((item) => ({ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" })));
+      if (remoteEvents.length) setEvents(remoteEvents);
       setLoading(false);
     }
     loadAcademy();
@@ -85,6 +87,7 @@ export default function App() {
         </button>
         <nav className="desktop-nav" aria-label="Navegación principal">
           {navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}
+          {academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}
         </nav>
         <div className="topbar-actions">
           <span className="tenant-name">Guardián Financiero</span>
@@ -93,13 +96,14 @@ export default function App() {
         </div>
       </header>
 
-      {mobileMenu && <nav className="mobile-nav">{navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}</nav>}
+      {mobileMenu && <nav className="mobile-nav">{navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
 
       <main className="content">
         {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} loading={loading} onNavigate={navigate} />}
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} />)}</div></CollectionView>}
+        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} />}
       </main>
     </div>
   );
@@ -140,4 +144,17 @@ function DownloadRow({ download }) {
 
 function EmptyState({ title, text }) {
   return <div className="empty-state"><PlayCircle size={28} /><h3>{title}</h3><p>{text}</p></div>;
+}
+
+function AdminView({ context, sessions, downloads, events }) {
+  const organization = context?.organization;
+  return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
+    <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Guardián Financiero"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
+    <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
+    <div className="admin-roadmap"><p className="eyebrow">SIGUIENTE BLOQUE</p><h3>Crear y editar contenido</h3><p>La estructura de permisos ya está conectada. El siguiente paso de operación será agregar formularios para publicar sesiones, recursos y webinars desde este panel.</p></div>
+  </CollectionView>;
+}
+
+function AdminStat({ label, value }) {
+  return <div className="admin-stat"><strong>{value}</strong><span>{label}</span></div>;
 }
