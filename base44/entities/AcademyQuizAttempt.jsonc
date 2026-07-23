@@ -1,0 +1,22 @@
+{
+  "name": "AcademyQuizAttempt",
+  "type": "object",
+  "description": "Intento de evaluación de un alumno.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "course_id": { "type": "string" },
+    "lesson_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "passed": { "type": "boolean", "default": false },
+    "answers": { "type": "array", "items": { "type": "integer" } },
+    "attempted_at": { "type": "string" }
+  },
+  "required": ["organization_id", "course_id", "lesson_id", "user_id", "score", "passed", "attempted_at"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
