@@ -10,6 +10,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Lecciones de video con proveedores externos YouTube no listado y Vimeo.
 - Evaluaciones con preguntas, calificación y aprobación desde backend.
 - Certificados automáticos al completar el 100% de un curso.
+- Validación pública por folio y vista imprimible para guardar el certificado como PDF.
 - Modelo de datos multiempresa: organizaciones, membresías y contenido con `organization_id`.
 - Personalización inicial por organización (nombre, logo, colores y módulos habilitados).
 - Estructura preparada para clientes Academy (escuelas, academias y empresas), alumnos y facilitadores.
