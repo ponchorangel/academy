@@ -66,10 +66,20 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [requestedOrganizationId, setRequestedOrganizationId] = useState("");
+  const [previewRole, setPreviewRole] = useState("");
   const certificateNumber = new URLSearchParams(window.location.search).get("certificate");
   const organization = academyContext?.organization;
   const enabledModules = organization?.enabled_modules?.length ? organization.enabled_modules : ["sessions", "courses", "downloads", "events"];
   const visibleNavItems = useMemo(() => navItems.filter((item) => item.id === "inicio" || enabledModules.includes({ sesiones: "sessions", cursos: "courses", eventos: "events", descargables: "downloads" }[item.id])), [enabledModules.join(",")]);
+  const effectiveContext = useMemo(() => {
+    if (!academyContext || !previewRole) return academyContext;
+    const previewPermissions = previewRole === "student"
+      ? { ...academyContext.permissions, can_manage: false, can_manage_organization: false, can_manage_sessions: false, can_manage_events: false, can_manage_downloads: false }
+      : previewRole === "teacher"
+        ? { ...academyContext.permissions, can_manage: true, can_manage_organization: false, can_manage_events: false, can_manage_downloads: true }
+        : { ...academyContext.permissions, can_manage: true, can_manage_organization: true };
+    return { ...academyContext, user: { ...academyContext.user, role: previewRole }, permissions: previewPermissions };
+  }, [academyContext, previewRole]);
 
   useEffect(() => {
     let alive = true;
@@ -140,6 +150,7 @@ export default function App() {
     if (!organizationId || organizationId === organization?.id) return;
     setLoading(true);
     setActiveView("inicio");
+    setPreviewRole("");
     setRequestedOrganizationId(organizationId);
   }
 
@@ -211,6 +222,7 @@ export default function App() {
 
   return (
     <div className="academy-shell" style={{ "--tenant-color": organization?.primary_color || "#0091D1" }}>
+      {previewRole && <PreviewBanner role={previewRole} onExit={() => { setPreviewRole(""); setActiveView("inicio"); }} />}
       <header className="topbar">
         <button className="brand" onClick={() => navigate("inicio")} aria-label="Ir al inicio">
           <span className="brand-mark">{organization?.logo_url ? <img className="tenant-logo" src={organization.logo_url} alt={organization.display_name || "Academy"} /> : <ScalariaMark />}</span>
@@ -218,16 +230,17 @@ export default function App() {
         </button>
         <nav className="desktop-nav" aria-label="Navegación principal">
           {visibleNavItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}
-          {academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}
+          {effectiveContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}
         </nav>
         <div className="topbar-actions">
           {academyContext?.organizations?.length > 0 && <label className="tenant-switcher"><span className="sr-only">Academy activa</span><select value={organization?.id || ""} onChange={(event) => switchOrganization(event.target.value)} aria-label="Cambiar Academy activa">{academyContext.organizations.map((item) => <option key={item.id} value={item.id}>{item.display_name || item.name}</option>)}</select></label>}
+          {user?.role === "superadmin" && <PreviewSelector value={previewRole} onChange={(value) => { setPreviewRole(value); setActiveView("inicio"); }} />}
           {user ? <div className="avatar">{firstName.slice(0, 1)}</div> : <button className="sign-in" onClick={() => setShowLogin(true)}><LogIn size={16} /> Entrar</button>}
           <button className="mobile-menu-button" onClick={() => setMobileMenu((value) => !value)} aria-label="Abrir menú">{mobileMenu ? <X /> : <Menu />}</button>
         </div>
       </header>
 
-      {mobileMenu && <nav className="mobile-nav">{visibleNavItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
+      {mobileMenu && <nav className="mobile-nav">{visibleNavItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{effectiveContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
 
       <main className="content">
         {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} registrations={registrations} loading={loading} onNavigate={navigate} organization={organization} onDownload={openDownload} onRegister={(id) => registerFor("event", id)} />}
@@ -236,14 +249,23 @@ export default function App() {
         {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} enrollment={enrollments.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} progress={lessonProgress} certificate={certificates.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} organizationId={academyContext?.organization?.id} onEnroll={enrollInCourse} onCompleteLesson={completeLesson} onBack={() => navigate("cursos")} />}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} registration={registrations.find((item) => item.resource_id === event.id)} onRegister={() => registerFor("event", event.id)} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} onOpen={() => openDownload(download)} />)}</div></CollectionView>}
-        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} onTenantCreated={handleTenantCreated} />}
-        {activeView === "administracion" && <SecureDownloadUploader organization={academyContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
-        {activeView === "administracion" && <EventOperations organization={academyContext?.organization} events={events} registrations={registrations} onSaved={(item) => handleContentSaved("event", item, "update")} onRemind={sendEventReminders} />}
-        {activeView === "administracion" && <ModuleSettings organization={organization} onSaved={handleOrganizationSaved} />}
-        {activeView === "administracion" && <RegistrationManager events={events} registrations={registrations} onAttendance={updateAttendance} onRemind={sendEventReminders} />}
+        {activeView === "administracion" && effectiveContext?.permissions?.can_manage && <AdminView context={effectiveContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} onTenantCreated={handleTenantCreated} />}
+        {activeView === "administracion" && effectiveContext?.permissions?.can_manage_downloads && <SecureDownloadUploader organization={effectiveContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
+        {activeView === "administracion" && effectiveContext?.permissions?.can_manage_events && <EventOperations organization={effectiveContext?.organization} events={events} registrations={registrations} onSaved={(item) => handleContentSaved("event", item, "update")} onRemind={sendEventReminders} />}
+        {activeView === "administracion" && effectiveContext?.permissions?.can_manage_organization && <ModuleSettings organization={effectiveContext?.organization} onSaved={handleOrganizationSaved} />}
+        {activeView === "administracion" && effectiveContext?.permissions?.can_manage_events && <RegistrationManager events={events} registrations={registrations} onAttendance={updateAttendance} onRemind={sendEventReminders} />}
       </main>
     </div>
   );
+}
+
+function PreviewBanner({ role, onExit }) {
+  const labels = { organization_admin: "Administrador del cliente", teacher: "Facilitador", student: "Alumno" };
+  return <div className="preview-banner"><span>Vista previa: <strong>{labels[role] || role}</strong></span><button onClick={onExit}>Salir de vista previa</button></div>;
+}
+
+function PreviewSelector({ value, onChange }) {
+  return <label className="preview-selector"><span className="sr-only">Vista previa</span><select value={value} onChange={(event) => onChange(event.target.value)} aria-label="Ver Academy como"><option value="">Vista real</option><option value="organization_admin">Ver como administrador</option><option value="teacher">Ver como facilitador</option><option value="student">Ver como alumno</option></select></label>;
 }
 
 function NavButton({ item, active, onClick }) {
@@ -428,7 +450,7 @@ function AdminView({ context, sessions, downloads, events, courses, courseModule
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <OnboardingChecklist onboarding={context?.onboarding} />
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
-    <div className="admin-workspace"><OrganizationSettings organization={organization} onSaved={onOrganizationSaved} /><ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><CourseBuilder organization={organization} courses={courses} modules={courseModules} lessons={courseLessons} onSaved={onContentSaved} onArchived={onArchived} /><MemberManager organization={organization} members={members} invitations={invitations} canManageOrganization={context?.permissions?.can_manage_organization} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} /><AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Cursos" type="course" items={courses} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
+    <div className="admin-workspace">{context?.permissions?.can_manage_organization && <OrganizationSettings organization={organization} onSaved={onOrganizationSaved} />}<ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><CourseBuilder organization={organization} courses={courses} modules={courseModules} lessons={courseLessons} onSaved={onContentSaved} onArchived={onArchived} />{context?.permissions?.can_manage_organization && <MemberManager organization={organization} members={members} invitations={invitations} canManageOrganization={context?.permissions?.can_manage_organization} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} />}<AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Cursos" type="course" items={courses} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
   </CollectionView>;
 }
 

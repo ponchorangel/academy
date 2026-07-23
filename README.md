@@ -25,6 +25,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Alta de nuevas Academies y selector de organización activa para superadministradores.
 - Onboarding con invitación al administrador responsable de cada cliente, aislado por organización.
 - Checklist de onboarding por Academy y carga pública validada de logos PNG, JPG o WebP.
+- Vista previa del portal como administrador del cliente, facilitador o alumno para revisión operativa.
 - Datos de demostración mientras se conectan las entidades reales del primer cliente.
 
 ## Desarrollo local
@@ -49,6 +50,6 @@ La publicación utiliza el proyecto vinculado en `base44/.app.jsonc`. No se debe
 ## Próximas fases
 
 1. Conexión automatizada de dominios personalizados y verificación de DNS.
-2. Paneles de vista previa para superadmin: administrador, facilitador y alumno.
+2. Conexión automatizada de dominios personalizados y verificación de DNS.
 3. Auditoría de actividad, métricas de uso y planes SaaS por módulos.
 4. Migración selectiva desde plataformas educativas anteriores y conexión de dominios de clientes.
