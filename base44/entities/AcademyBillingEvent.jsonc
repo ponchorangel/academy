@@ -1,0 +1,20 @@
+{
+  "name": "AcademyBillingEvent",
+  "type": "object",
+  "description": "Registro idempotente de eventos recibidos desde Stripe.",
+  "properties": {
+    "event_id": { "type": "string", "maxLength": 100 },
+    "event_type": { "type": "string", "maxLength": 120 },
+    "organization_id": { "type": "string", "maxLength": 100 },
+    "status": { "type": "string", "enum": ["processed", "ignored", "failed"] },
+    "payload_hash": { "type": "string", "maxLength": 64 },
+    "processed_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["event_id", "event_type", "status", "processed_at"],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}

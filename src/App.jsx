@@ -461,6 +461,7 @@ function AdminView({ context, sessions, downloads, events, courses, courseModule
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
     {context?.user?.role === "superadmin" && <TenantManager organizations={context?.organizations || []} onCreated={onTenantCreated} />}
     {context?.user?.role === "superadmin" && <PlanManager organization={organization} onSaved={onOrganizationSaved} />}
+    {context?.permissions?.can_manage_organization && <BillingPanel organization={organization} />}
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <OnboardingChecklist onboarding={context?.onboarding} />
     <AnalyticsPanel organization={organization} />
@@ -481,6 +482,34 @@ function PlanManager({ organization, onSaved }) {
   }
   const currentPlan = plans.find((plan) => plan.key === selected);
   return <section className="admin-panel plan-panel"><div className="admin-panel-heading"><div><p className="eyebrow">MODELO SAAS</p><h3>Paquete de módulos</h3></div><span className="panel-note">{organization?.plan_status === "active" ? "Activo" : "Piloto"}</span></div><p className="panel-description">Asigna capacidades a la Academy activa. Esta fase no incluye cobros ni precios; solo define los módulos disponibles.</p>{status === "loading" ? <span className="panel-note">Cargando plantillas...</span> : <><div className="plan-grid">{plans.map((plan) => <button type="button" className={`plan-card ${selected === plan.key ? "selected" : ""}`} key={plan.key} onClick={() => setSelected(plan.key)}><strong>{plan.name}</strong><span>{plan.description}</span><small>{plan.modules.length} módulos</small></button>)}</div><div className="form-actions"><button className="primary-button" onClick={assign} disabled={status === "saving" || !currentPlan}>{status === "saving" ? "Guardando..." : "Asignar paquete"}</button>{status === "saved" && <span className="form-success">Paquete asignado</span>}{status === "error" && <span className="form-error">No se pudo asignar</span>}</div></>}</section>;
+}
+
+function BillingPanel({ organization }) {
+  const [catalog, setCatalog] = useState(null);
+  const [billing, setBilling] = useState(null);
+  const [status, setStatus] = useState("loading");
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      setStatus("loading");
+      try {
+        const [catalogResult, billingResult] = await Promise.all([
+          base44.functions.invoke("academyBillingMutation", { action: "catalog" }),
+          base44.functions.invoke("academyBillingMutation", { action: "status", organization_id: organization?.id }),
+        ]);
+        if (!alive) return;
+        setCatalog(catalogResult?.data || catalogResult);
+        setBilling((billingResult?.data || billingResult)?.billing || null);
+        setStatus("ready");
+      } catch { if (alive) setStatus("error"); }
+    }
+    if (organization?.id) load();
+    return () => { alive = false; };
+  }, [organization?.id]);
+  if (status === "loading") return <section className="admin-panel billing-panel"><div className="admin-panel-heading"><div><p className="eyebrow">FACTURACIÓN</p><h3>Stripe Billing</h3></div><span className="panel-note">Cargando...</span></div></section>;
+  if (status === "error" || !catalog || !billing) return <section className="admin-panel billing-panel"><div className="admin-panel-heading"><div><p className="eyebrow">FACTURACIÓN</p><h3>Stripe Billing</h3></div><span className="form-error">No disponible</span></div></section>;
+  const currentPlan = catalog.plans?.find((plan) => plan.key === billing.plan_key);
+  return <section className="admin-panel billing-panel"><div className="admin-panel-heading"><div><p className="eyebrow">FACTURACIÓN SAAS</p><h3>Suscripción de la Academy</h3></div><span className={`billing-badge ${billing.subscription_status === "active" ? "active" : ""}`}>{billing.subscription_status || billing.plan_status || "Sin suscripción"}</span></div><p className="panel-description">Stripe será el motor de suscripciones recurrentes por organización. El acceso al checkout permanecerá suspendido hasta configurar productos, precios, claves y webhooks en el entorno seguro.</p><div className="billing-summary"><div><span>Paquete</span><strong>{currentPlan?.key || billing.plan_key}</strong></div><div><span>Customer</span><strong>{billing.customer_id ? "Configurado" : "Pendiente"}</strong></div><div><span>Checkout</span><strong>{catalog.checkout_enabled ? "Disponible" : "Suspendido"}</strong></div></div><div className="billing-checklist">{catalog.plans?.map((plan) => <div key={plan.key}><span className={`billing-dot ${plan.price_configured ? "ready" : ""}`} />{plan.key}: {plan.price_configured ? "price configurado" : "price pendiente"}</div>)}</div><div className="form-actions"><button type="button" className="secondary-button" disabled>Checkout pendiente de activación</button><span className="panel-note">No se realizan cargos en esta fase.</span></div></section>;
 }
 
 function AnalyticsPanel({ organization }) {

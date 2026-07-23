@@ -29,6 +29,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Verificación DNS de dominios personalizados con estado pendiente o registros encontrados.
 - Métricas de uso por Academy, consumo por módulo y actividad administrativa reciente.
 - Plantillas de plan por módulos, con enforcement backend y sin cobro activado.
+- Integración Stripe preparada para suscripciones multi-tenant: Billing + Checkout + Customer Portal, con webhook firmado e idempotente; cobros permanecen suspendidos por un interruptor de código hasta configurar y validar productos, precios y secretos.
 - Datos de demostración mientras se conectan las entidades reales del primer cliente.
 
 ## Desarrollo local
@@ -54,5 +55,6 @@ La publicación utiliza el proyecto vinculado en `base44/.app.jsonc`. No se debe
 
 1. Conexión automatizada de dominios personalizados y verificación de DNS.
 2. Conexión automatizada del dominio dentro del proveedor de hosting y verificación final de resolución.
-3. Definición y activación de planes SaaS por módulos con límites comerciales.
-4. Migración selectiva desde plataformas educativas anteriores y conexión de dominios de clientes.
+3. Configurar productos/precios Stripe, claves restringidas y webhook en un entorno seguro; validar checkout y ciclo de vida antes de activar cobros.
+4. Definición comercial de planes SaaS por módulos con límites y activación controlada.
+5. Migración selectiva desde plataformas educativas anteriores y conexión de dominios de clientes.
