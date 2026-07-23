@@ -16,6 +16,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Confirmaciones y recordatorios de eventos mediante Resend desde `academy@scalaria.com.mx`.
 - Configuración de enlaces de acceso y grabación por evento.
 - Portal personalizable por Academy: logo, color, bienvenida y módulos visibles.
+- Inicio de sesión propio sin registro público; el acceso se controla mediante invitaciones.
 - Modelo de datos multiempresa: organizaciones, membresías y contenido con `organization_id`.
 - Personalización inicial por organización (nombre, logo, colores y módulos habilitados).
 - Estructura preparada para clientes Academy (escuelas, academias y empresas), alumnos y facilitadores.

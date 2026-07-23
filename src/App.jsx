@@ -64,6 +64,7 @@ export default function App() {
   const [invitations, setInvitations] = useState([]);
   const [academyContext, setAcademyContext] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
   const certificateNumber = new URLSearchParams(window.location.search).get("certificate");
   const organization = academyContext?.organization;
   const enabledModules = organization?.enabled_modules?.length ? organization.enabled_modules : ["sessions", "courses", "downloads", "events"];
@@ -194,7 +195,7 @@ export default function App() {
   }
 
   if (certificateNumber) return <PublicCertificateView certificateNumber={certificateNumber} />;
-  if (!user) return <PublicLanding onSignIn={() => base44.auth.redirectToLogin(window.location.href)} />;
+  if (!user) return showLogin ? <LoginPage onBack={() => setShowLogin(false)} /> : <PublicLanding onSignIn={() => setShowLogin(true)} />;
 
   return (
     <div className="academy-shell" style={{ "--tenant-color": organization?.primary_color || "#0091D1" }}>
@@ -209,7 +210,7 @@ export default function App() {
         </nav>
         <div className="topbar-actions">
           <span className="tenant-name">{academyContext?.organization?.display_name || "Academy"}</span>
-          {user ? <div className="avatar">{firstName.slice(0, 1)}</div> : <button className="sign-in" onClick={() => base44.auth.redirectToLogin() }><LogIn size={16} /> Entrar</button>}
+          {user ? <div className="avatar">{firstName.slice(0, 1)}</div> : <button className="sign-in" onClick={() => setShowLogin(true)}><LogIn size={16} /> Entrar</button>}
           <button className="mobile-menu-button" onClick={() => setMobileMenu((value) => !value)} aria-label="Abrir menú">{mobileMenu ? <X /> : <Menu />}</button>
         </div>
       </header>
@@ -244,6 +245,14 @@ function ScalariaMark() {
     {[20, 29, 38, 47, 56, 65, 74].map((x, index) => <rect key={x} x={x} y={[54, 42, 30, 18, 30, 42, 54][index]} width="6" height={[20, 32, 44, 56, 44, 32, 20][index]} rx="1.5" fill={index === 3 ? "#d48c3c" : "currentColor"} />)}
     <text x="78" y="86" fontSize="14" fontWeight="600" fill="currentColor" fontFamily="Inter, Arial, sans-serif">®</text>
   </svg>;
+}
+
+function LoginPage({ onBack }) {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [status, setStatus] = useState("idle");
+  async function submit(event) { event.preventDefault(); setStatus("saving"); try { await base44.auth.loginViaEmailPassword(form.email, form.password); window.location.reload(); } catch { setStatus("error"); } }
+  async function forgotPassword() { if (!form.email) { setStatus("missing_email"); return; } setStatus("resetting"); try { await base44.auth.resetPasswordRequest(form.email); setStatus("reset_sent"); } catch { setStatus("error"); } }
+  return <div className="login-page"><div className="login-card"><button className="text-link login-back" onClick={onBack}><ChevronRight size={16} className="back-icon" /> Volver a Academy</button><div className="login-brand"><span className="brand-mark"><ScalariaMark /></span><span><strong>Academy</strong><small>by Scalaria</small></span></div><p className="eyebrow">ACCESO PRIVADO</p><h1>Entra a tu Academy.</h1><p className="login-copy">El acceso es únicamente por invitación. Usa el correo con el que te registraron.</p><form className="login-form" onSubmit={submit}><label>Correo electrónico<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} autoComplete="email" required /></label><label>Contraseña<input type="password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} autoComplete="current-password" required /></label><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Entrando..." : "Entrar"}</button></form><button className="text-link" onClick={forgotPassword} disabled={status === "resetting"}>{status === "resetting" ? "Enviando..." : "¿Olvidaste tu contraseña?"}</button>{status === "reset_sent" && <span className="form-success">Revisa tu correo para restablecerla.</span>}{status === "missing_email" && <span className="form-error">Escribe tu correo primero.</span>}{status === "error" && <span className="form-error">No pudimos iniciar sesión. Verifica tus datos o acepta la invitación.</span>}</div></div>;
 }
 
 function PublicLanding({ onSignIn }) {
