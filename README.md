@@ -7,7 +7,8 @@ Plataforma independiente y multiempresa de capacitación. Guardián Financiero e
 - Panel de alumno con sesiones, eventos y descargables.
 - Modelo de datos multiempresa: organizaciones, membresías y contenido con `organization_id`.
 - Personalización inicial por organización (nombre, logo, colores y módulos habilitados).
-- Estructura preparada para maestros, administradores y alumnos.
+- Estructura preparada para clientes Academy (escuelas, academias y empresas), alumnos y facilitadores.
+- Perfiles de facilitador con biografía, expertise, background y varios facilitadores por sesión o evento.
 - Datos de demostración mientras se conectan las entidades reales del primer cliente.
 
 ## Desarrollo local

@@ -12,6 +12,7 @@
     "duration_minutes": { "type": "integer", "minimum": 1, "maximum": 1440 },
     "teacher_name": { "type": "string", "maxLength": 160 },
     "teacher_user_id": { "type": "string" },
+    "facilitator_ids": { "type": "array", "items": { "type": "string" }, "description": "Uno o más perfiles de facilitadores asignados." },
     "meeting_url": { "type": "string", "maxLength": 1000 },
     "recording_url": { "type": "string", "maxLength": 1000 },
     "cover_url": { "type": "string", "maxLength": 1000 },

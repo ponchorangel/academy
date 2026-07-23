@@ -1,0 +1,25 @@
+{
+  "name": "AcademyFacilitatorProfile",
+  "type": "object",
+  "description": "Perfil público o privado de una persona que imparte sesiones y eventos.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "full_name": { "type": "string", "maxLength": 160 },
+    "headline": { "type": "string", "maxLength": 180 },
+    "bio": { "type": "string", "maxLength": 3000 },
+    "expertise": { "type": "array", "items": { "type": "string" }, "description": "Especialidades y temas que domina." },
+    "background": { "type": "string", "maxLength": 3000 },
+    "avatar_url": { "type": "string", "maxLength": 1000 },
+    "linkedin_url": { "type": "string", "maxLength": 500 },
+    "visibility": { "type": "string", "enum": ["private", "members", "public"], "default": "members" },
+    "status": { "type": "string", "enum": ["draft", "published", "archived"], "default": "draft" }
+  },
+  "required": ["organization_id", "user_id", "full_name", "visibility", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

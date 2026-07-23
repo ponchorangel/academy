@@ -10,6 +10,7 @@
     "start_at": { "type": "string", "format": "date-time" },
     "end_at": { "type": "string", "format": "date-time" },
     "speaker_names": { "type": "array", "items": { "type": "string" } },
+    "facilitator_ids": { "type": "array", "items": { "type": "string" }, "description": "Uno o más perfiles de facilitadores del evento." },
     "meeting_url": { "type": "string", "maxLength": 1000 },
     "recording_url": { "type": "string", "maxLength": 1000 },
     "capacity": { "type": "integer", "minimum": 1 },
