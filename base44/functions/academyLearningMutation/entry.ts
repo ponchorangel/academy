@@ -46,7 +46,13 @@ Deno.serve(async (req) => {
     const completedCount = progressRows.filter((item) => item.status === 'completed' && item.lesson_id !== lessonId).length + 1;
     const percent = lessons.length ? Math.min(100, Math.round((completedCount / lessons.length) * 100)) : 0;
     const enrollmentUpdate = await base44.asServiceRole.entities.AcademyCourseEnrollment.update(enrollment.id, { progress_percent: percent, status: percent === 100 ? 'completed' : 'enrolled', completed_at: percent === 100 ? now : enrollment.completed_at });
-    return response({ progress, enrollment: enrollmentUpdate });
+    let certificate = null;
+    if (percent === 100) {
+      const course = await base44.asServiceRole.entities.AcademyCourse.get(lesson.course_id).catch(() => null);
+      const existingCertificate = (await base44.asServiceRole.entities.AcademyCertificate.filter({ organization_id: organizationId, course_id: lesson.course_id, user_id: user.id }))[0];
+      certificate = existingCertificate || await base44.asServiceRole.entities.AcademyCertificate.create({ organization_id: organizationId, course_id: lesson.course_id, user_id: user.id, student_name: user.full_name || user.email || '', course_title: course?.title || '', certificate_number: `ACD-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, issued_at: now, status: 'issued' });
+    }
+    return response({ progress, enrollment: enrollmentUpdate, certificate });
   } catch (_error) {
     return response({ error: 'internal_error' }, 500);
   }

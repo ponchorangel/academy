@@ -1,0 +1,22 @@
+{
+  "name": "AcademyCertificate",
+  "type": "object",
+  "description": "Certificado de finalización de un curso.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "course_id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "student_name": { "type": "string", "maxLength": 180 },
+    "course_title": { "type": "string", "maxLength": 180 },
+    "certificate_number": { "type": "string", "maxLength": 80 },
+    "issued_at": { "type": "string" },
+    "status": { "type": "string", "enum": ["issued", "revoked"], "default": "issued" }
+  },
+  "required": ["organization_id", "course_id", "user_id", "certificate_number", "issued_at", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
