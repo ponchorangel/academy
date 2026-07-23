@@ -8,6 +8,8 @@ Academy incorpora cursos como una ruta de aprendizaje estructurada, independient
 - Estados de borrador, publicado y archivado.
 - Acceso configurable para todos los miembros, personas inscritas, invitación o contenido público.
 - Alta, edición y archivado desde Administración.
+- Constructor de módulos y lecciones desde Administración.
+- Vista de detalle del curso para el alumno, con módulos y lecciones ordenadas.
 - Vista de cursos para alumnos y mención del módulo en la landing pública.
 
-La entidad `AcademyCourseModule` deja preparada la relación curso → módulos ordenados para la siguiente iteración, donde se agregarán lecciones, materiales y seguimiento de avance.
+Las entidades `AcademyCourseModule` y `AcademyCourseLesson` dejan preparada la relación curso → módulos → lecciones. La siguiente iteración agregará progreso, evaluaciones y carga segura de materiales.

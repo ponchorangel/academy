@@ -7,6 +7,8 @@ const ENTITY_BY_TYPE = Object.freeze({
   event: 'AcademyEvent',
   facilitator: 'AcademyFacilitatorProfile',
   course: 'AcademyCourse',
+  course_module: 'AcademyCourseModule',
+  course_lesson: 'AcademyCourseLesson',
 });
 
 const ROLE_PERMISSIONS = Object.freeze({
@@ -15,6 +17,8 @@ const ROLE_PERMISSIONS = Object.freeze({
   event: ['superadmin', 'organization_admin'],
   facilitator: ['superadmin', 'organization_admin'],
   course: ['superadmin', 'organization_admin', 'teacher'],
+  course_module: ['superadmin', 'organization_admin', 'teacher'],
+  course_lesson: ['superadmin', 'organization_admin', 'teacher'],
 });
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -95,9 +99,34 @@ Deno.serve(async (req) => {
       data.level = ['introductory', 'intermediate', 'advanced'].includes(data.level) ? data.level : 'introductory';
       data.facilitator_ids = Array.isArray(data.facilitator_ids) ? data.facilitator_ids.map((item: unknown) => cleanText(item, 100)).filter(Boolean).slice(0, 20) : [];
     }
-    const saved = action === 'update'
-      ? await entity.update(cleanText(input.id, 100), data)
-      : await entity.create(data);
+    if (type === 'course_module') {
+      data.course_id = cleanText(data.course_id, 100);
+      data.description = cleanText(data.description, 2000);
+      data.order = Number.isInteger(data.order) ? Math.max(0, data.order) : 0;
+      data.lesson_count = Number.isInteger(data.lesson_count) ? Math.max(0, data.lesson_count) : 0;
+      data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
+      if (!data.course_id) return response({ error: 'course_id_required' }, 400);
+    }
+    if (type === 'course_lesson') {
+      data.course_id = cleanText(data.course_id, 100);
+      data.module_id = cleanText(data.module_id, 100);
+      data.description = cleanText(data.description, 4000);
+      data.content = cleanText(data.content, 12000);
+      data.resource_url = cleanText(data.resource_url, 1000);
+      data.lesson_type = ['video', 'reading', 'download', 'live', 'quiz'].includes(data.lesson_type) ? data.lesson_type : 'reading';
+      data.order = Number.isInteger(data.order) ? Math.max(0, data.order) : 0;
+      data.duration_minutes = Number.isInteger(data.duration_minutes) ? Math.max(0, data.duration_minutes) : 0;
+      data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
+      if (!data.course_id || !data.module_id) return response({ error: 'course_and_module_required' }, 400);
+    }
+    let saved;
+    if (action === 'update') {
+      const existing = await entity.get(cleanText(input.id, 100)).catch(() => null);
+      if (!existing || existing.organization_id !== organizationId) return response({ error: 'not_found' }, 404);
+      saved = await entity.update(existing.id, data);
+    } else {
+      saved = await entity.create(data);
+    }
     return response({ item: saved });
   } catch (_error) {
     return response({ error: 'internal_error' }, 500);

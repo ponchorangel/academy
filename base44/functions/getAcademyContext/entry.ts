@@ -6,6 +6,8 @@ const CONTENT_TYPES = Object.freeze({
   downloads: 'AcademyDownload',
   events: 'AcademyEvent',
   courses: 'AcademyCourse',
+  course_modules: 'AcademyCourseModule',
+  course_lessons: 'AcademyCourseLesson',
 });
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -48,12 +50,14 @@ Deno.serve(async (req) => {
     const academyRole = user.role === 'admin' && !membership ? 'superadmin' : membership?.role;
     const canManage = ['superadmin', 'organization_admin', 'teacher'].includes(academyRole);
     const query = { organization_id: selectedOrganization.id };
-    const [sessionRows, downloadRows, eventRows, facilitatorRows, courseRows, memberRows, invitationRows] = await Promise.all([
+    const [sessionRows, downloadRows, eventRows, facilitatorRows, courseRows, moduleRows, lessonRows, memberRows, invitationRows] = await Promise.all([
       base44.asServiceRole.entities.AcademySession.filter(query),
       base44.asServiceRole.entities.AcademyDownload.filter(query),
       base44.asServiceRole.entities.AcademyEvent.filter(query),
       base44.asServiceRole.entities.AcademyFacilitatorProfile.filter(query),
       base44.asServiceRole.entities.AcademyCourse.filter(query),
+      base44.asServiceRole.entities.AcademyCourseModule.filter(query),
+      base44.asServiceRole.entities.AcademyCourseLesson.filter(query),
       canManage ? base44.asServiceRole.entities.AcademyMembership.filter(query) : Promise.resolve([]),
       canManage ? base44.asServiceRole.entities.AcademyInvitation.filter({ organization_id: selectedOrganization.id, status: 'pending' }) : Promise.resolve([]),
     ]);
@@ -77,6 +81,8 @@ Deno.serve(async (req) => {
         events: eventRows.filter((item) => isManager || item.status === 'published'),
         facilitators: facilitatorRows.filter((item) => isManager || item.status === 'published'),
         courses: courseRows.filter((item) => isManager || item.status === 'published'),
+        course_modules: moduleRows.filter((item) => isManager || item.status === 'published'),
+        course_lessons: lessonRows.filter((item) => isManager || item.status === 'published'),
         members: isManager ? memberRows : [],
         invitations: isManager ? invitationRows : [],
       },

@@ -1,0 +1,25 @@
+{
+  "name": "AcademyCourseLesson",
+  "type": "object",
+  "description": "Lección ordenada dentro de un módulo de curso.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "course_id": { "type": "string" },
+    "module_id": { "type": "string" },
+    "title": { "type": "string", "maxLength": 180 },
+    "description": { "type": "string", "maxLength": 4000 },
+    "content": { "type": "string", "maxLength": 12000 },
+    "resource_url": { "type": "string", "maxLength": 1000 },
+    "lesson_type": { "type": "string", "enum": ["video", "reading", "download", "live", "quiz"], "default": "reading" },
+    "order": { "type": "integer", "minimum": 0 },
+    "duration_minutes": { "type": "integer", "minimum": 0 },
+    "status": { "type": "string", "enum": ["draft", "published", "archived"], "default": "draft" }
+  },
+  "required": ["organization_id", "course_id", "module_id", "title", "order", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "$or": [{ "created_by": "{{user.email}}" }, { "user_condition": { "role": "admin" } }] },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
