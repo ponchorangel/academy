@@ -9,7 +9,7 @@
     "logo_url": { "type": "string", "maxLength": 1000 },
     "primary_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
     "status": { "type": "string", "enum": ["active", "paused", "archived"], "default": "active" },
-    "enabled_modules": { "type": "array", "items": { "type": "string" }, "default": ["sessions", "downloads", "events"] },
+    "enabled_modules": { "type": "array", "items": { "type": "string" }, "default": ["sessions", "courses", "downloads", "events"] },
     "custom_domain": { "type": "string", "maxLength": 255 },
     "welcome_message": { "type": "string", "maxLength": 1000 }
   },

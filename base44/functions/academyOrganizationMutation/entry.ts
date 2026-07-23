@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { safeText } from './_shared/security.js';
 
-const MODULES = new Set(['sessions', 'downloads', 'events', 'facilitators', 'students']);
+const MODULES = new Set(['sessions', 'courses', 'downloads', 'events', 'facilitators', 'students']);
 
 function response(body: Record<string, unknown>, status = 200) {
   return Response.json(body, { status });

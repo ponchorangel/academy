@@ -65,6 +65,9 @@ export default function App() {
   const [academyContext, setAcademyContext] = useState(null);
   const [loading, setLoading] = useState(true);
   const certificateNumber = new URLSearchParams(window.location.search).get("certificate");
+  const organization = academyContext?.organization;
+  const enabledModules = organization?.enabled_modules?.length ? organization.enabled_modules : ["sessions", "courses", "downloads", "events"];
+  const visibleNavItems = useMemo(() => navItems.filter((item) => item.id === "inicio" || enabledModules.includes({ sesiones: "sessions", cursos: "courses", eventos: "events", descargables: "downloads" }[item.id])), [enabledModules.join(",")]);
 
   useEffect(() => {
     let alive = true;
@@ -194,14 +197,14 @@ export default function App() {
   if (!user) return <PublicLanding onSignIn={() => base44.auth.redirectToLogin(window.location.href)} />;
 
   return (
-    <div className="academy-shell">
+    <div className="academy-shell" style={{ "--tenant-color": organization?.primary_color || "#0091D1" }}>
       <header className="topbar">
         <button className="brand" onClick={() => navigate("inicio")} aria-label="Ir al inicio">
-          <span className="brand-mark"><ScalariaMark /></span>
+          <span className="brand-mark">{organization?.logo_url ? <img className="tenant-logo" src={organization.logo_url} alt={organization.display_name || "Academy"} /> : <ScalariaMark />}</span>
           <span><strong>Academy</strong><small>by Scalaria</small></span>
         </button>
         <nav className="desktop-nav" aria-label="Navegación principal">
-          {navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}
+          {visibleNavItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}
           {academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}
         </nav>
         <div className="topbar-actions">
@@ -211,10 +214,10 @@ export default function App() {
         </div>
       </header>
 
-      {mobileMenu && <nav className="mobile-nav">{navItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
+      {mobileMenu && <nav className="mobile-nav">{visibleNavItems.map((item) => <NavButton key={item.id} item={item} active={activeView === item.id} onClick={navigate} />)}{academyContext?.permissions?.can_manage && <NavButton item={{ id: "administracion", label: "Administración", icon: Users }} active={activeView === "administracion"} onClick={navigate} />}</nav>}
 
       <main className="content">
-        {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} registrations={registrations} loading={loading} onNavigate={navigate} organization={academyContext?.organization} onDownload={openDownload} onRegister={(id) => registerFor("event", id)} />}
+        {activeView === "inicio" && <HomeView firstName={firstName} nextSession={nextSession} sessions={sessions} downloads={downloads} events={events} registrations={registrations} loading={loading} onNavigate={navigate} organization={organization} onDownload={openDownload} onRegister={(id) => registerFor("event", id)} />}
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "cursos" && <CollectionView title="Cursos" eyebrow="RUTAS DE APRENDIZAJE" description="Avanza por cursos estructurados a tu ritmo." icon={BookOpen}>{courses.length ? <div className="session-grid">{courses.map((course) => <CourseCard key={course.id} course={course} onOpen={() => { setSelectedCourseId(course.id); navigate("curso"); }} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los cursos de tu Academy." />}</CollectionView>}
         {activeView === "curso" && <CourseDetailView course={courses.find((item) => item.id === selectedCourseId) || courses[0]} modules={courseModules} lessons={courseLessons} enrollment={enrollments.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} progress={lessonProgress} certificate={certificates.find((item) => item.course_id === (selectedCourseId || courses[0]?.id))} organizationId={academyContext?.organization?.id} onEnroll={enrollInCourse} onCompleteLesson={completeLesson} onBack={() => navigate("cursos")} />}
@@ -223,6 +226,7 @@ export default function App() {
         {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
         {activeView === "administracion" && <SecureDownloadUploader organization={academyContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
         {activeView === "administracion" && <EventOperations organization={academyContext?.organization} events={events} registrations={registrations} onSaved={(item) => handleContentSaved("event", item, "update")} onRemind={sendEventReminders} />}
+        {activeView === "administracion" && <ModuleSettings organization={organization} onSaved={handleOrganizationSaved} />}
         {activeView === "administracion" && <RegistrationManager events={events} registrations={registrations} onAttendance={updateAttendance} onRemind={sendEventReminders} />}
       </main>
     </div>
@@ -273,7 +277,7 @@ function PublicCertificateView({ certificateNumber }) {
 function HomeView({ firstName, nextSession, sessions, downloads, events, registrations, loading, onNavigate, organization, onDownload, onRegister }) {
   return <>
     <section className="welcome-panel">
-      <div><p className="eyebrow">{organization?.display_name || "ACADEMY"}</p><h1>Hola, {firstName}.</h1><p className="welcome-copy">Aquí encontrarás tus sesiones, talleres, webinars y recursos para tomar mejores decisiones con acompañamiento profesional.</p></div>
+      <div><p className="eyebrow">{organization?.display_name || "ACADEMY"}</p><h1>Hola, {firstName}.</h1><p className="welcome-copy">{organization?.welcome_message || "Aquí encontrarás tus sesiones, talleres, webinars y recursos para tomar mejores decisiones con acompañamiento profesional."}</p></div>
       <div className="welcome-orbit"><GraduationCap size={54} strokeWidth={1.2} /><span>Aprender<br />transforma.</span></div>
     </section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">TU PRÓXIMO PASO</p><h2>Continúa aprendiendo</h2></div><button className="text-link" onClick={() => onNavigate("sesiones")}>Ver todas <ChevronRight size={16} /></button></div>{loading ? <div className="loading-card">Cargando tu Academy...</div> : <div className="session-grid"><SessionCard session={nextSession || sessions[0]} featured /></div>}</section>
@@ -348,6 +352,16 @@ function SecureDownloadUploader({ organization, onSaved }) {
     } catch { setStatus("error"); }
   }
   return <section className="admin-panel secure-upload-panel"><div className="admin-panel-heading"><div><p className="eyebrow">BIBLIOTECA PRIVADA</p><h3>Subir descargable seguro</h3></div><span className="panel-note">Máximo 20 MB</span></div><form className="admin-form" onSubmit={submit}><label>Título<input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required /></label><label>Categoría<input value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} /></label><label>Descripción<textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows="2" /></label><label>Archivo privado<input type="file" accept=".pdf,.docx,.xlsx,.pptx,.txt" onChange={(event) => setFile(event.target.files?.[0] || null)} required /><span className="panel-note">PDF, Word, Excel, PowerPoint o TXT. El archivo se entrega mediante enlace temporal.</span></label><div className="form-actions"><button className="primary-button" disabled={status === "uploading"}>{status === "uploading" ? "Subiendo..." : "Subir y publicar"}</button>{status === "saved" && <span className="form-success">Publicado</span>}{status === "error" && <span className="form-error">Revisa el archivo e inténtalo nuevamente</span>}</div></form></section>;
+}
+
+function ModuleSettings({ organization, onSaved }) {
+  const labels = { sessions: "Sesiones", courses: "Cursos", events: "Eventos y webinars", downloads: "Descargables", facilitators: "Facilitadores", students: "Comunidad" };
+  const [modules, setModules] = useState(organization?.enabled_modules || ["sessions", "courses", "events", "downloads"]);
+  const [status, setStatus] = useState("idle");
+  useEffect(() => { setModules(organization?.enabled_modules || ["sessions", "courses", "events", "downloads"]); }, [organization?.id, organization?.enabled_modules?.join(",")]);
+  function toggle(module) { setModules((current) => current.includes(module) ? current.filter((item) => item !== module) : [...current, module]); }
+  async function save() { setStatus("saving"); try { const result = await base44.functions.invoke("academyOrganizationMutation", { organization_id: organization?.id, display_name: organization?.display_name, primary_color: organization?.primary_color || "#0091D1", logo_url: organization?.logo_url || "", welcome_message: organization?.welcome_message || "", custom_domain: organization?.custom_domain || "", enabled_modules: modules }); const payload = result?.data || result; onSaved(payload.organization); setStatus("saved"); } catch { setStatus("error"); } }
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">EXPERIENCIA DEL TENANT</p><h3>Módulos visibles</h3></div><span className="panel-note">Personaliza este portal</span></div><div className="module-toggle-grid">{Object.entries(labels).map(([module, label]) => <label className={`module-toggle ${modules.includes(module) ? "selected" : ""}`} key={module}><input type="checkbox" checked={modules.includes(module)} onChange={() => toggle(module)} />{label}</label>)}</div><div className="form-actions"><button className="primary-button" onClick={save} disabled={status === "saving"}>{status === "saving" ? "Guardando..." : "Guardar módulos"}</button>{status === "saved" && <span className="form-success">Guardado</span>}{status === "error" && <span className="form-error">No se pudo guardar</span>}</div></section>;
 }
 
 function EventOperations({ organization, events, registrations, onSaved, onRemind }) {
