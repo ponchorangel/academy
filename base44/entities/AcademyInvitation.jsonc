@@ -1,0 +1,23 @@
+{
+  "name": "AcademyInvitation",
+  "type": "object",
+  "description": "Invitación de acceso a una organización Academy.",
+  "properties": {
+    "organization_id": { "type": "string" },
+    "email": { "type": "string", "maxLength": 254 },
+    "display_name": { "type": "string", "maxLength": 160 },
+    "role": { "type": "string", "enum": ["student", "teacher"] },
+    "status": { "type": "string", "enum": ["pending", "accepted", "cancelled", "expired"], "default": "pending" },
+    "invited_by_user_id": { "type": "string" },
+    "accepted_user_id": { "type": "string" },
+    "invited_at": { "type": "string", "format": "date-time" },
+    "accepted_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["organization_id", "email", "role", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": false
+  }
+}

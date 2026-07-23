@@ -19,10 +19,21 @@ Deno.serve(async (req) => {
 
     const payload = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const requestedOrganizationId = safeText(payload.organization_id, 100);
-    const [memberships, allOrganizations] = await Promise.all([
+    let [memberships, allOrganizations] = await Promise.all([
       base44.asServiceRole.entities.AcademyMembership.filter({ user_id: user.id, status: 'active' }),
       user.role === 'admin' ? base44.asServiceRole.entities.AcademyOrganization.filter({ status: 'active' }) : Promise.resolve([]),
     ]);
+
+    const pendingInvitations = user.email
+      ? await base44.asServiceRole.entities.AcademyInvitation.filter({ email: user.email.toLowerCase(), status: 'pending' })
+      : [];
+    for (const invitation of pendingInvitations) {
+      const alreadyMember = memberships.some((item) => item.organization_id === invitation.organization_id);
+      if (alreadyMember) continue;
+      const createdMembership = await base44.asServiceRole.entities.AcademyMembership.create({ organization_id: invitation.organization_id, user_id: user.id, email: user.email.toLowerCase(), display_name: invitation.display_name || user.full_name || '', role: invitation.role, status: 'active', joined_at: new Date().toISOString() });
+      await base44.asServiceRole.entities.AcademyInvitation.update(invitation.id, { status: 'accepted', accepted_user_id: user.id, accepted_at: new Date().toISOString() });
+      memberships = [...memberships, createdMembership];
+    }
 
     const organizationIds = new Set((memberships || []).map((membership) => membership.organization_id));
     const availableOrganizations = user.role === 'admin'
@@ -36,11 +47,13 @@ Deno.serve(async (req) => {
     const academyRole = user.role === 'admin' && !membership ? 'superadmin' : membership?.role;
     const canManage = ['superadmin', 'organization_admin', 'teacher'].includes(academyRole);
     const query = { organization_id: selectedOrganization.id };
-    const [sessionRows, downloadRows, eventRows, facilitatorRows] = await Promise.all([
+    const [sessionRows, downloadRows, eventRows, facilitatorRows, memberRows, invitationRows] = await Promise.all([
       base44.asServiceRole.entities.AcademySession.filter(query),
       base44.asServiceRole.entities.AcademyDownload.filter(query),
       base44.asServiceRole.entities.AcademyEvent.filter(query),
       base44.asServiceRole.entities.AcademyFacilitatorProfile.filter(query),
+      canManage ? base44.asServiceRole.entities.AcademyMembership.filter(query) : Promise.resolve([]),
+      canManage ? base44.asServiceRole.entities.AcademyInvitation.filter({ organization_id: selectedOrganization.id, status: 'pending' }) : Promise.resolve([]),
     ]);
 
     const isManager = canManage;
@@ -61,6 +74,8 @@ Deno.serve(async (req) => {
         downloads: downloadRows.filter((item) => isManager || item.status === 'published'),
         events: eventRows.filter((item) => isManager || item.status === 'published'),
         facilitators: facilitatorRows.filter((item) => isManager || item.status === 'published'),
+        members: isManager ? memberRows : [],
+        invitations: isManager ? invitationRows : [],
       },
       content_types: CONTENT_TYPES,
     });

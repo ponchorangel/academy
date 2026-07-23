@@ -51,6 +51,8 @@ export default function App() {
   const [downloads, setDownloads] = useState(demoDownloads);
   const [events, setEvents] = useState(demoEvents);
   const [facilitators, setFacilitators] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [academyContext, setAcademyContext] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,11 +69,15 @@ export default function App() {
       const remoteDownloads = context?.content?.downloads || [];
       const remoteEvents = context?.content?.events || [];
       const remoteFacilitators = context?.content?.facilitators || [];
+      const remoteMembers = context?.content?.members || [];
+      const remoteInvitations = context?.content?.invitations || [];
       if (remoteSessions.length) setSessions(remoteSessions.map((item) => ({ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", teacher: item.teacher_name || "Academy", color: "mint" })));
       if (remoteDownloads.length) setDownloads(remoteDownloads.map((item) => ({ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" })));
       if (remoteEvents.length) setEvents(remoteEvents);
       else setEvents(demoEvents);
       if (remoteFacilitators.length) setFacilitators(remoteFacilitators);
+      setMembers(remoteMembers);
+      setInvitations(remoteInvitations);
       setLoading(false);
     }
     loadAcademy();
@@ -96,6 +102,14 @@ export default function App() {
 
   function handleOrganizationSaved(organization) {
     setAcademyContext((current) => current ? { ...current, organization } : current);
+  }
+
+  function handleMemberChanged(member) {
+    setMembers((current) => current.map((item) => item.id === member.id ? member : item));
+  }
+
+  function handleInvitationCreated(invitation) {
+    setInvitations((current) => [invitation, ...current]);
   }
 
   async function handleArchived(type, id) {
@@ -135,7 +149,7 @@ export default function App() {
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} />)}</div></CollectionView>}
-        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} facilitators={facilitators} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} />}
+        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
       </main>
     </div>
   );
@@ -205,13 +219,13 @@ function EmptyState({ title, text }) {
   return <div className="empty-state"><PlayCircle size={28} /><h3>{title}</h3><p>{text}</p></div>;
 }
 
-function AdminView({ context, sessions, downloads, events, facilitators, onContentSaved, onOrganizationSaved, onArchived }) {
+function AdminView({ context, sessions, downloads, events, facilitators, members, invitations, onContentSaved, onOrganizationSaved, onArchived, onMemberChanged, onInvitationCreated }) {
   const organization = context?.organization;
   const [editing, setEditing] = useState(null);
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
-    <div className="admin-workspace"><OrganizationSettings organization={organization} onSaved={onOrganizationSaved} /><ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
+    <div className="admin-workspace"><OrganizationSettings organization={organization} onSaved={onOrganizationSaved} /><ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><MemberManager organization={organization} members={members} invitations={invitations} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} /><AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
   </CollectionView>;
 }
 
@@ -267,6 +281,31 @@ function ContentCreator({ organization, canManageEvents, facilitators, editingIt
     } catch { setStatus("error"); }
   }
   return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">CONTENIDO</p><h3>{editingItem ? "Editar contenido" : "Publicar en Academy"}</h3></div><span className="panel-note">{editingItem ? "Edición" : "Alta rápida"}</span></div><div className="content-type-tabs"><button type="button" className={type === "session" ? "selected" : ""} onClick={() => setType("session")}>Sesión</button><button type="button" className={type === "event" ? "selected" : ""} onClick={() => setType("event")} disabled={!canManageEvents}>Evento</button><button type="button" className={type === "download" ? "selected" : ""} onClick={() => setType("download")}>Descargable</button><button type="button" className={type === "facilitator" ? "selected" : ""} onClick={() => setType("facilitator")} disabled={!canManageEvents}>Facilitador</button></div><form className="admin-form" onSubmit={submit}>{isFacilitator ? <><label>Nombre completo<input value={form.full_name} onChange={(event) => update("full_name", event.target.value)} required /></label><label>Título profesional<input value={form.headline} onChange={(event) => update("headline", event.target.value)} placeholder="Especialista en..." /></label><label>Expertise<input value={form.expertise} onChange={(event) => update("expertise", event.target.value)} placeholder="Finanzas, liderazgo, ventas" /></label><label>Biografía<textarea value={form.bio} onChange={(event) => update("bio", event.target.value)} rows="3" /></label><label>Background<textarea value={form.background} onChange={(event) => update("background", event.target.value)} rows="3" /></label></> : <><label>Título<input value={form.title} onChange={(event) => update("title", event.target.value)} required /></label><label>Descripción<textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows="3" /></label>{!isDownload && <label>Fecha y hora<input type="datetime-local" value={form.start_at} onChange={(event) => update("start_at", event.target.value)} required /></label>}{type === "session" && <div className="form-row"><label>Tipo<select value={form.session_type} onChange={(event) => update("session_type", event.target.value)}><option value="workshop">Taller</option><option value="class">Clase</option><option value="mentoring">Mentoría</option><option value="masterclass">Masterclass</option></select></label><label>Duración (minutos)<input type="number" min="1" max="1440" value={form.duration_minutes} onChange={(event) => update("duration_minutes", event.target.value)} /></label></div>}{type === "session" && <label>Facilitador principal<input value={form.teacher_name} onChange={(event) => update("teacher_name", event.target.value)} placeholder="Nombre visible" /></label>}{(type === "session" || type === "event") && <fieldset className="facilitator-picker"><legend>Facilitadores asignados</legend>{facilitators.length ? facilitators.map((facilitator) => <label key={facilitator.id}><input type="checkbox" checked={form.facilitator_ids.includes(facilitator.id)} onChange={() => toggleFacilitator(facilitator.id)} />{facilitator.full_name}</label>) : <span>No hay perfiles disponibles todavía.</span>}</fieldset>}{isDownload && <div className="form-row"><label>Categoría<input value={form.category} onChange={(event) => update("category", event.target.value)} /></label><label>Formato<select value={form.file_type} onChange={(event) => update("file_type", event.target.value)}><option value="pdf">PDF</option><option value="xlsx">Excel</option><option value="docx">Word</option><option value="link">Enlace</option><option value="video">Video</option></select></label></div>}{isDownload && <label>Archivo o enlace<input value={form.file_uri} onChange={(event) => update("file_uri", event.target.value)} placeholder="La carga segura se habilitará en el siguiente bloque" /></label>}</>}<div className="form-actions"><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Guardando..." : editingItem ? "Guardar cambios" : "Publicar"}</button>{editingItem && <button type="button" className="secondary-button" onClick={onClearEdit}>Cancelar edición</button>}{status === "saved" && <span className="form-success">Guardado</span>}{status === "error" && <span className="form-error">No se pudo guardar</span>}</div></form></section>;
+}
+
+function MemberManager({ organization, members, invitations, onMemberChanged, onInvitationCreated }) {
+  const [form, setForm] = useState({ email: "", display_name: "", role: "student" });
+  const [status, setStatus] = useState("idle");
+  async function invite(event) {
+    event.preventDefault();
+    setStatus("saving");
+    try {
+      const result = await base44.functions.invoke("academyInvitationMutation", { organization_id: organization?.id, ...form });
+      const payload = result?.data || result;
+      onInvitationCreated(payload.invitation);
+      setForm({ email: "", display_name: "", role: "student" });
+      setStatus("saved");
+    } catch { setStatus("error"); }
+  }
+  async function changeStatus(member) {
+    const nextStatus = member.status === "active" ? "suspended" : "active";
+    try {
+      const result = await base44.functions.invoke("academyMemberMutation", { organization_id: organization?.id, membership_id: member.id, status: nextStatus });
+      const payload = result?.data || result;
+      onMemberChanged(payload.membership);
+    } catch { setStatus("error"); }
+  }
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">COMUNIDAD</p><h3>Alumnos y miembros</h3></div><span className="panel-note">{members.length} miembros · {invitations.length} invitaciones</span></div><form className="member-invite-form" onSubmit={invite}><input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="correo@ejemplo.com" required /><input value={form.display_name} onChange={(event) => setForm((current) => ({ ...current, display_name: event.target.value }))} placeholder="Nombre (opcional)" /><select value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}><option value="student">Alumno</option><option value="teacher">Facilitador</option></select><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Enviando..." : "Invitar"}</button></form>{status === "saved" && <span className="form-success">Invitación enviada</span>}{status === "error" && <span className="form-error">No se pudo completar la operación</span>}{members.length ? <div className="member-list">{members.map((member) => <article className="member-row" key={member.id}><div className="avatar">{member.display_name?.slice(0, 1) || member.email?.slice(0, 1) || "A"}</div><div><strong>{member.display_name || member.email}</strong><span>{member.email} · {member.role === "student" ? "Alumno" : "Facilitador"}</span></div><button className="archive-button" onClick={() => changeStatus(member)}>{member.status === "active" ? "Suspender" : "Reactivar"}</button></article>)}</div> : <div className="empty-state compact-empty"><Users size={24} /><p>Aún no hay miembros activos.</p></div>}{invitations.length > 0 && <div className="pending-invitations"><span className="eyebrow">INVITACIONES PENDIENTES</span>{invitations.map((invitation) => <span key={invitation.id}>{invitation.email} · {invitation.role === "student" ? "Alumno" : "Facilitador"}</span>)}</div>}</section>;
 }
 
 function AdminContentList({ title, type, items, onArchived, onEdit }) {
