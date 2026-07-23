@@ -89,7 +89,7 @@ export default function App() {
     <div className="academy-shell">
       <header className="topbar">
         <button className="brand" onClick={() => navigate("inicio")} aria-label="Ir al inicio">
-          <span className="brand-mark"><GraduationCap size={21} /></span>
+          <span className="brand-mark"><ScalariaMark /></span>
           <span><strong>Academy</strong><small>by Scalaria</small></span>
         </button>
         <nav className="desktop-nav" aria-label="Navegación principal">
@@ -121,6 +121,14 @@ function NavButton({ item, active, onClick }) {
   return <button className={`nav-item ${active ? "active" : ""}`} onClick={() => onClick(item.id)}><Icon size={17} />{item.label}</button>;
 }
 
+function ScalariaMark() {
+  return <svg className="scalaria-mark" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Scalaria">
+    <circle cx="50" cy="50" r="44" stroke="currentColor" strokeWidth="4" />
+    {[20, 29, 38, 47, 56, 65, 74].map((x, index) => <rect key={x} x={x} y={[54, 42, 30, 18, 30, 42, 54][index]} width="6" height={[20, 32, 44, 56, 44, 32, 20][index]} rx="1.5" fill={index === 3 ? "#d48c3c" : "currentColor"} />)}
+    <text x="78" y="86" fontSize="14" fontWeight="600" fill="currentColor" fontFamily="Inter, Arial, sans-serif">®</text>
+  </svg>;
+}
+
 function PublicLanding({ onSignIn }) {
   const modules = [
     { icon: CalendarDays, title: "Sesiones", text: "Clases, talleres, mentorías y sesiones en vivo con seguimiento." },
@@ -128,7 +136,7 @@ function PublicLanding({ onSignIn }) {
     { icon: Download, title: "Descargables", text: "Guías, plantillas, checklists y recursos para aplicar lo aprendido." },
   ];
   return <div className="public-page">
-    <header className="public-topbar"><div className="brand"><span className="brand-mark"><GraduationCap size={21} /></span><span><strong>Academy</strong><small>by Scalaria</small></span></div><button className="sign-in" onClick={onSignIn}><LogIn size={16} /> Entrar a mi Academy</button></header>
+    <header className="public-topbar"><div className="brand"><span className="brand-mark"><ScalariaMark /></span><span><strong>Academy</strong><small>by Scalaria</small></span></div><button className="sign-in" onClick={onSignIn}><LogIn size={16} /> Entrar a mi Academy</button></header>
     <main>
       <section className="public-hero"><div className="public-hero-copy"><p className="eyebrow">PLATAFORMA DE CAPACITACIÓN</p><h1>Aprende lo que necesitas para avanzar.</h1><p>Academy reúne sesiones, talleres, webinars y recursos en un espacio claro para que cada escuela, academia o empresa pueda formar a su comunidad.</p><div className="hero-actions"><button className="primary-button" onClick={onSignIn}>Entrar a mi Academy <ChevronRight size={17} /></button><a href="#modulos" className="text-link light">Conocer los módulos <ChevronRight size={16} /></a></div></div><div className="hero-card"><div className="hero-card-header"><span className="status-dot" /> Academy activa</div><div className="hero-card-title">Tu aprendizaje,<br /><strong>en un solo lugar.</strong></div><div className="hero-mini-row"><span><CalendarDays size={16} /> Sesiones</span><span><Video size={16} /> Webinars</span></div><div className="hero-mini-row"><span><Download size={16} /> Recursos</span><span><Users size={16} /> Comunidad</span></div></div></section>
       <section className="public-section" id="modulos"><div className="public-section-heading"><p className="eyebrow">TODO LO QUE NECESITAS</p><h2>Una experiencia de aprendizaje simple y práctica.</h2><p>Academy puede personalizarse para cada cliente, con su identidad, sus facilitadores y sus alumnos.</p></div><div className="module-grid">{modules.map(({ icon: Icon, title, text }) => <article className="module-card" key={title}><span className="module-icon"><Icon size={22} /></span><h3>{title}</h3><p>{text}</p><span className="module-arrow"><ChevronRight size={17} /></span></article>)}</div></section>
