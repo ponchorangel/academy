@@ -173,6 +173,10 @@ export default function App() {
     if (payload?.registration) setRegistrations((current) => current.map((item) => item.id === payload.registration.id ? payload.registration : item));
   }
 
+  async function sendEventReminders(resourceType, resourceId) {
+    await base44.functions.invoke("academyRegistrationMutation", { action: "send_reminders", organization_id: academyContext?.organization?.id, resource_type: resourceType, resource_id: resourceId });
+  }
+
   async function handleArchived(type, id) {
     const organizationId = academyContext?.organization?.id;
     if (!organizationId || !id) return;
@@ -218,7 +222,7 @@ export default function App() {
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} onOpen={() => openDownload(download)} />)}</div></CollectionView>}
         {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} courses={courses} courseModules={courseModules} courseLessons={courseLessons} facilitators={facilitators} members={members} invitations={invitations} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} onArchived={handleArchived} onMemberChanged={handleMemberChanged} onInvitationCreated={handleInvitationCreated} />}
         {activeView === "administracion" && <SecureDownloadUploader organization={academyContext?.organization} onSaved={(item) => handleContentSaved("download", item)} />}
-        {activeView === "administracion" && <RegistrationManager events={events} registrations={registrations} onAttendance={updateAttendance} />}
+        {activeView === "administracion" && <RegistrationManager events={events} registrations={registrations} onAttendance={updateAttendance} onRemind={sendEventReminders} />}
       </main>
     </div>
   );
@@ -345,8 +349,8 @@ function SecureDownloadUploader({ organization, onSaved }) {
   return <section className="admin-panel secure-upload-panel"><div className="admin-panel-heading"><div><p className="eyebrow">BIBLIOTECA PRIVADA</p><h3>Subir descargable seguro</h3></div><span className="panel-note">Máximo 20 MB</span></div><form className="admin-form" onSubmit={submit}><label>Título<input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required /></label><label>Categoría<input value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} /></label><label>Descripción<textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows="2" /></label><label>Archivo privado<input type="file" accept=".pdf,.docx,.xlsx,.pptx,.txt" onChange={(event) => setFile(event.target.files?.[0] || null)} required /><span className="panel-note">PDF, Word, Excel, PowerPoint o TXT. El archivo se entrega mediante enlace temporal.</span></label><div className="form-actions"><button className="primary-button" disabled={status === "uploading"}>{status === "uploading" ? "Subiendo..." : "Subir y publicar"}</button>{status === "saved" && <span className="form-success">Publicado</span>}{status === "error" && <span className="form-error">Revisa el archivo e inténtalo nuevamente</span>}</div></form></section>;
 }
 
-function RegistrationManager({ events, registrations, onAttendance }) {
-  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">EVENTOS Y ASISTENCIA</p><h3>Registros de eventos</h3></div><span className="panel-note">{registrations.length} registros</span></div>{registrations.length ? <div className="operation-list">{registrations.map((registration) => { const event = events.find((item) => item.id === registration.resource_id); return <article className="operation-row" key={registration.id}><div><strong>{event?.title || "Evento"}</strong><span>{registration.email || "Alumno"} · {registration.status}</span></div><div className="operation-actions"><button className="edit-button" onClick={() => onAttendance(registration, registration.status === "attended" ? "registered" : "attended")}>{registration.status === "attended" ? "Quitar asistencia" : "Marcar asistencia"}</button></div></article>; })}</div> : <div className="empty-state compact-empty"><Video size={24} /><p>Aún no hay registros de eventos.</p></div>}</section>;
+function RegistrationManager({ events, registrations, onAttendance, onRemind }) {
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">EVENTOS Y ASISTENCIA</p><h3>Registros de eventos</h3></div><span className="panel-note">{registrations.length} registros</span></div>{registrations.length ? <div className="operation-list">{registrations.map((registration) => { const event = events.find((item) => item.id === registration.resource_id); return <article className="operation-row" key={registration.id}><div><strong>{event?.title || "Evento"}</strong><span>{registration.email || "Alumno"} · {registration.status}</span></div><div className="operation-actions"><button className="edit-button" onClick={() => onAttendance(registration, registration.status === "attended" ? "registered" : "attended")}>{registration.status === "attended" ? "Quitar asistencia" : "Marcar asistencia"}</button>{event && <button className="secondary-button" onClick={() => onRemind(registration.resource_type, registration.resource_id)}>Recordar</button>}</div></article>; })}</div> : <div className="empty-state compact-empty"><Video size={24} /><p>Aún no hay registros de eventos.</p></div>}</section>;
 }
 
 function CourseDetailView({ course, modules, lessons, enrollment, progress, certificate, organizationId, onEnroll, onCompleteLesson, onBack }) {
