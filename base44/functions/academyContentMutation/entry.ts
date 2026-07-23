@@ -5,12 +5,14 @@ const ENTITY_BY_TYPE = Object.freeze({
   session: 'AcademySession',
   download: 'AcademyDownload',
   event: 'AcademyEvent',
+  facilitator: 'AcademyFacilitatorProfile',
 });
 
 const ROLE_PERMISSIONS = Object.freeze({
   session: ['superadmin', 'organization_admin', 'teacher'],
   download: ['superadmin', 'organization_admin', 'teacher'],
   event: ['superadmin', 'organization_admin'],
+  facilitator: ['superadmin', 'organization_admin'],
 });
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -71,6 +73,17 @@ Deno.serve(async (req) => {
     if (type === 'event') {
       data.description = cleanText(data.description, 3000);
       data.status = ['draft', 'published', 'live', 'finished', 'cancelled'].includes(data.status) ? data.status : 'draft';
+    }
+    if (type === 'facilitator') {
+      data.user_id = cleanText(data.user_id, 100) || user.id;
+      data.full_name = cleanText(data.full_name, 160);
+      data.headline = cleanText(data.headline, 180);
+      data.bio = cleanText(data.bio, 3000);
+      data.background = cleanText(data.background, 3000);
+      data.expertise = Array.isArray(data.expertise) ? data.expertise.map((item: unknown) => cleanText(item, 80)).filter(Boolean).slice(0, 20) : [];
+      data.visibility = ['private', 'members', 'public'].includes(data.visibility) ? data.visibility : 'members';
+      data.status = ['draft', 'published', 'archived'].includes(data.status) ? data.status : 'draft';
+      if (!data.full_name) return response({ error: 'full_name_required' }, 400);
     }
     const saved = action === 'update'
       ? await entity.update(cleanText(input.id, 100), data)

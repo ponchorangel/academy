@@ -50,6 +50,7 @@ export default function App() {
   const [sessions, setSessions] = useState(demoSessions);
   const [downloads, setDownloads] = useState(demoDownloads);
   const [events, setEvents] = useState(demoEvents);
+  const [facilitators, setFacilitators] = useState([]);
   const [academyContext, setAcademyContext] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,10 +66,12 @@ export default function App() {
       const remoteSessions = context?.content?.sessions || [];
       const remoteDownloads = context?.content?.downloads || [];
       const remoteEvents = context?.content?.events || [];
+      const remoteFacilitators = context?.content?.facilitators || [];
       if (remoteSessions.length) setSessions(remoteSessions.map((item) => ({ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", teacher: item.teacher_name || "Academy", color: "mint" })));
       if (remoteDownloads.length) setDownloads(remoteDownloads.map((item) => ({ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" })));
       if (remoteEvents.length) setEvents(remoteEvents);
       else setEvents(demoEvents);
+      if (remoteFacilitators.length) setFacilitators(remoteFacilitators);
       setLoading(false);
     }
     loadAcademy();
@@ -81,6 +84,17 @@ export default function App() {
   function navigate(view) {
     setActiveView(view);
     setMobileMenu(false);
+  }
+
+  function handleContentSaved(type, item) {
+    if (type === "session") setSessions((current) => [{ ...item, date: formatDate(item.start_at), time: item.duration_minutes ? `${item.duration_minutes} min` : "Horario por confirmar", status: item.status === "published" ? "Próxima" : item.status, type: item.session_type || "Sesión", teacher: item.teacher_name || "Academy", color: "mint" }, ...current]);
+    if (type === "download") setDownloads((current) => [{ ...item, category: item.category || "Recursos", format: item.file_type || "Archivo" }, ...current]);
+    if (type === "event") setEvents((current) => [item, ...current]);
+    if (type === "facilitator") setFacilitators((current) => [item, ...current]);
+  }
+
+  function handleOrganizationSaved(organization) {
+    setAcademyContext((current) => current ? { ...current, organization } : current);
   }
 
   if (!user) return <PublicLanding onSignIn={() => base44.auth.redirectToLogin(window.location.href)} />;
@@ -110,7 +124,7 @@ export default function App() {
         {activeView === "sesiones" && <CollectionView title="Mis sesiones" eyebrow="APRENDE A TU RITMO" description="Encuentra tus próximas sesiones, talleres y grabaciones." icon={CalendarDays}><div className="session-grid">{sessions.map((session) => <SessionCard key={session.id} session={session} />)}</div></CollectionView>}
         {activeView === "eventos" && <CollectionView title="Eventos y webinars" eyebrow="ENCUENTROS EN VIVO" description="Regístrate, participa y vuelve a la grabación cuando quieras." icon={Video}>{events.length ? <div className="session-grid">{events.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Próximamente" text="Aquí aparecerán los webinars y eventos de tu Academy." />}</CollectionView>}
         {activeView === "descargables" && <CollectionView title="Descargables" eyebrow="RECURSOS PARA AVANZAR" description="Materiales prácticos para llevar lo aprendido a tu día a día." icon={Download}><div className="download-list">{downloads.map((download) => <DownloadRow key={download.id} download={download} />)}</div></CollectionView>}
-        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} />}
+        {activeView === "administracion" && <AdminView context={academyContext} sessions={sessions} downloads={downloads} events={events} facilitators={facilitators} onContentSaved={handleContentSaved} onOrganizationSaved={handleOrganizationSaved} />}
       </main>
     </div>
   );
@@ -180,15 +194,59 @@ function EmptyState({ title, text }) {
   return <div className="empty-state"><PlayCircle size={28} /><h3>{title}</h3><p>{text}</p></div>;
 }
 
-function AdminView({ context, sessions, downloads, events }) {
+function AdminView({ context, sessions, downloads, events, facilitators, onContentSaved, onOrganizationSaved }) {
   const organization = context?.organization;
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
-    <div className="admin-roadmap"><p className="eyebrow">SIGUIENTE BLOQUE</p><h3>Crear y editar contenido</h3><p>La estructura de permisos ya está conectada. El siguiente paso de operación será agregar formularios para publicar sesiones, recursos y webinars desde este panel.</p></div>
+    <div className="admin-workspace"><OrganizationSettings organization={organization} onSaved={onOrganizationSaved} /><ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} onSaved={onContentSaved} /><FacilitatorList facilitators={facilitators} /></div>
   </CollectionView>;
 }
 
 function AdminStat({ label, value }) {
   return <div className="admin-stat"><strong>{value}</strong><span>{label}</span></div>;
+}
+
+function OrganizationSettings({ organization, onSaved }) {
+  const [form, setForm] = useState({ display_name: organization?.display_name || "Academy", primary_color: organization?.primary_color || "#0091D1", logo_url: organization?.logo_url || "", welcome_message: organization?.welcome_message || "", custom_domain: organization?.custom_domain || "" });
+  const [status, setStatus] = useState("idle");
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  async function submit(event) {
+    event.preventDefault();
+    setStatus("saving");
+    try {
+      const result = await base44.functions.invoke("academyOrganizationMutation", { organization_id: organization?.id, ...form });
+      const payload = result?.data || result;
+      onSaved(payload.organization);
+      setStatus("saved");
+    } catch { setStatus("error"); }
+  }
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">MARCA DEL CLIENTE</p><h3>Personalización de organización</h3></div><span className="panel-note">Se aplicará al tenant activo</span></div><form className="admin-form" onSubmit={submit}><label>Nombre visible<input value={form.display_name} onChange={(event) => update("display_name", event.target.value)} maxLength={160} required /></label><label>Color principal<div className="color-input"><input type="color" value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} /><input value={form.primary_color} onChange={(event) => update("primary_color", event.target.value)} pattern="^#[0-9a-fA-F]{6}$" required /></div></label><label>Logo URL<input value={form.logo_url} onChange={(event) => update("logo_url", event.target.value)} placeholder="Se habilitará carga segura próximamente" /></label><label>Mensaje de bienvenida<textarea value={form.welcome_message} onChange={(event) => update("welcome_message", event.target.value)} rows="2" maxLength={1000} /></label><label>Dominio personalizado<input value={form.custom_domain} onChange={(event) => update("custom_domain", event.target.value)} placeholder="academy.tuempresa.com" /></label><div className="form-actions"><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Guardando..." : "Guardar configuración"}</button>{status === "saved" && <span className="form-success">Guardado</span>}{status === "error" && <span className="form-error">No se pudo guardar</span>}</div></form></section>;
+}
+
+function ContentCreator({ organization, canManageEvents, onSaved }) {
+  const [type, setType] = useState("session");
+  const [form, setForm] = useState({ title: "", description: "", start_at: "", duration_minutes: "60", session_type: "workshop", teacher_name: "", category: "Guías", file_type: "pdf", file_uri: "", expertise: "", full_name: "", headline: "", bio: "", background: "" });
+  const [status, setStatus] = useState("idle");
+  const isFacilitator = type === "facilitator";
+  const isDownload = type === "download";
+  const isEvent = type === "event";
+  function update(key, value) { setForm((current) => ({ ...current, [key]: value })); }
+  async function submit(event) {
+    event.preventDefault();
+    setStatus("saving");
+    const data = isFacilitator ? { full_name: form.full_name, headline: form.headline, bio: form.bio, background: form.background, expertise: form.expertise.split(",").map((item) => item.trim()).filter(Boolean), status: "published", visibility: "members" } : isDownload ? { title: form.title, description: form.description, category: form.category, file_type: form.file_type, file_uri: form.file_uri, status: "published", access: "all_members" } : isEvent ? { title: form.title, description: form.description, start_at: form.start_at, status: "published", access: "free" } : { title: form.title, description: form.description, session_type: form.session_type, start_at: form.start_at, duration_minutes: Number(form.duration_minutes), teacher_name: form.teacher_name, status: "published", access: "all_members" };
+    try {
+      const result = await base44.functions.invoke("academyContentMutation", { action: "create", type, organization_id: organization?.id, data });
+      const payload = result?.data || result;
+      onSaved(type, payload.item);
+      setForm((current) => ({ ...current, title: "", description: "", start_at: "", file_uri: "", full_name: "", headline: "", bio: "", background: "", expertise: "" }));
+      setStatus("saved");
+    } catch { setStatus("error"); }
+  }
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">CONTENIDO</p><h3>Publicar en Academy</h3></div><span className="panel-note">Alta rápida</span></div><div className="content-type-tabs"><button className={type === "session" ? "selected" : ""} onClick={() => setType("session")}>Sesión</button><button className={type === "event" ? "selected" : ""} onClick={() => setType("event")} disabled={!canManageEvents}>Evento</button><button className={type === "download" ? "selected" : ""} onClick={() => setType("download")}>Descargable</button><button className={type === "facilitator" ? "selected" : ""} onClick={() => setType("facilitator")} disabled={!canManageEvents}>Facilitador</button></div><form className="admin-form" onSubmit={submit}>{isFacilitator ? <><label>Nombre completo<input value={form.full_name} onChange={(event) => update("full_name", event.target.value)} required /></label><label>Título profesional<input value={form.headline} onChange={(event) => update("headline", event.target.value)} placeholder="Especialista en..." /></label><label>Expertise<input value={form.expertise} onChange={(event) => update("expertise", event.target.value)} placeholder="Finanzas, liderazgo, ventas" /></label><label>Biografía<textarea value={form.bio} onChange={(event) => update("bio", event.target.value)} rows="3" /></label><label>Background<textarea value={form.background} onChange={(event) => update("background", event.target.value)} rows="3" /></label></> : <><label>Título<input value={form.title} onChange={(event) => update("title", event.target.value)} required /></label><label>Descripción<textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows="3" /></label>{!isDownload && <label>Fecha y hora<input type="datetime-local" value={form.start_at} onChange={(event) => update("start_at", event.target.value)} required /></label>}{type === "session" && <div className="form-row"><label>Tipo<select value={form.session_type} onChange={(event) => update("session_type", event.target.value)}><option value="workshop">Taller</option><option value="class">Clase</option><option value="mentoring">Mentoría</option><option value="masterclass">Masterclass</option></select></label><label>Duración (minutos)<input type="number" min="1" max="1440" value={form.duration_minutes} onChange={(event) => update("duration_minutes", event.target.value)} /></label></div>}{type === "session" && <label>Facilitador principal<input value={form.teacher_name} onChange={(event) => update("teacher_name", event.target.value)} placeholder="Se podrá vincular al perfil después" /></label>}{isDownload && <div className="form-row"><label>Categoría<input value={form.category} onChange={(event) => update("category", event.target.value)} /></label><label>Formato<select value={form.file_type} onChange={(event) => update("file_type", event.target.value)}><option value="pdf">PDF</option><option value="xlsx">Excel</option><option value="docx">Word</option><option value="link">Enlace</option><option value="video">Video</option></select></label></div>}{isDownload && <label>Archivo o enlace<input value={form.file_uri} onChange={(event) => update("file_uri", event.target.value)} placeholder="La carga segura se habilitará en el siguiente bloque" /></label>}</>}<div className="form-actions"><button className="primary-button" disabled={status === "saving"}>{status === "saving" ? "Publicando..." : "Publicar"}</button>{status === "saved" && <span className="form-success">Publicado</span>}{status === "error" && <span className="form-error">No se pudo publicar</span>}</div></form></section>;
+}
+
+function FacilitatorList({ facilitators }) {
+  return <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">EQUIPO</p><h3>Facilitadores</h3></div><span className="panel-note">{facilitators.length} perfiles</span></div>{facilitators.length ? <div className="facilitator-list">{facilitators.map((facilitator) => <article className="facilitator-row" key={facilitator.id}><div className="avatar facilitator-avatar">{facilitator.full_name?.slice(0, 1) || "F"}</div><div><strong>{facilitator.full_name}</strong><span>{facilitator.headline || "Facilitador"}</span><small>{Array.isArray(facilitator.expertise) ? facilitator.expertise.join(" · ") : "Expertise por completar"}</small></div></article>)}</div> : <div className="empty-state compact-empty"><Users size={24} /><p>Aún no hay perfiles. Usa el formulario de contenido para agregar el primero.</p></div>}</section>;
 }

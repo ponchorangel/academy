@@ -36,10 +36,11 @@ Deno.serve(async (req) => {
     const academyRole = user.role === 'admin' && !membership ? 'superadmin' : membership?.role;
     const canManage = ['superadmin', 'organization_admin', 'teacher'].includes(academyRole);
     const query = { organization_id: selectedOrganization.id };
-    const [sessionRows, downloadRows, eventRows] = await Promise.all([
+    const [sessionRows, downloadRows, eventRows, facilitatorRows] = await Promise.all([
       base44.asServiceRole.entities.AcademySession.filter(query),
       base44.asServiceRole.entities.AcademyDownload.filter(query),
       base44.asServiceRole.entities.AcademyEvent.filter(query),
+      base44.asServiceRole.entities.AcademyFacilitatorProfile.filter(query),
     ]);
 
     const isManager = canManage;
@@ -59,6 +60,7 @@ Deno.serve(async (req) => {
         sessions: sessionRows.filter((item) => isManager || item.status === 'published'),
         downloads: downloadRows.filter((item) => isManager || item.status === 'published'),
         events: eventRows.filter((item) => isManager || item.status === 'published'),
+        facilitators: facilitatorRows.filter((item) => isManager || item.status === 'published'),
       },
       content_types: CONTENT_TYPES,
     });
