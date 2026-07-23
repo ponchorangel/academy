@@ -20,6 +20,7 @@ const ROLE_PERMISSIONS = Object.freeze({
   course_module: ['superadmin', 'organization_admin', 'teacher'],
   course_lesson: ['superadmin', 'organization_admin', 'teacher'],
 });
+const MODULE_BY_TYPE = Object.freeze({ session: 'sessions', download: 'downloads', event: 'events', facilitator: 'facilitators', course: 'courses', course_module: 'courses', course_lesson: 'courses' });
 
 function response(body: Record<string, unknown>, status = 200) {
   return Response.json(body, { status });
@@ -49,6 +50,7 @@ Deno.serve(async (req) => {
     const isPlatformAdmin = user.role === 'admin' && !memberships.length;
     const role = isPlatformAdmin ? 'superadmin' : memberships[0]?.role;
     if (!organization || !ROLE_PERMISSIONS[type as keyof typeof ROLE_PERMISSIONS]?.includes(role)) return response({ error: 'forbidden' }, 403);
+    if (!Array.isArray(organization.enabled_modules) || !organization.enabled_modules.includes(MODULE_BY_TYPE[type as keyof typeof MODULE_BY_TYPE])) return response({ error: 'module_not_enabled' }, 403);
 
     const entity = base44.asServiceRole.entities[entityName];
     if (action === 'archive') {

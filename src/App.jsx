@@ -460,12 +460,27 @@ function AdminView({ context, sessions, downloads, events, courses, courseModule
   const [editing, setEditing] = useState(null);
   return <CollectionView title="Administración" eyebrow="ESPACIO DE OPERACIÓN" description="Gestiona el contenido de tu organización desde un solo lugar." icon={Users}>
     {context?.user?.role === "superadmin" && <TenantManager organizations={context?.organizations || []} onCreated={onTenantCreated} />}
+    {context?.user?.role === "superadmin" && <PlanManager organization={organization} onSaved={onOrganizationSaved} />}
     <div className="admin-intro"><div><span className="eyebrow">ORGANIZACIÓN ACTIVA</span><h2>{organization?.display_name || organization?.name || "Academy"}</h2><p>Rol: <strong>{context?.user?.role || "administrador"}</strong>. Los permisos se validan en backend por membresía.</p></div><span className="admin-status">{organization?.status === "active" ? "Activa" : "Revisar estado"}</span></div>
     <OnboardingChecklist onboarding={context?.onboarding} />
     <AnalyticsPanel organization={organization} />
     <div className="admin-stats"><AdminStat label="Sesiones" value={sessions.length} /><AdminStat label="Descargables" value={downloads.length} /><AdminStat label="Eventos" value={events.length} /></div>
     <div className="admin-workspace">{context?.permissions?.can_manage_organization && <OrganizationSettings organization={organization} onSaved={onOrganizationSaved} />}<ContentCreator organization={organization} canManageEvents={context?.permissions?.can_manage_events} facilitators={facilitators} editingItem={editing?.item} editingType={editing?.type} onClearEdit={() => setEditing(null)} onSaved={(type, item, mode) => { onContentSaved(type, item, mode); setEditing(null); }} /><CourseBuilder organization={organization} courses={courses} modules={courseModules} lessons={courseLessons} onSaved={onContentSaved} onArchived={onArchived} />{context?.permissions?.can_manage_organization && <MemberManager organization={organization} members={members} invitations={invitations} canManageOrganization={context?.permissions?.can_manage_organization} onMemberChanged={onMemberChanged} onInvitationCreated={onInvitationCreated} />}<AdminContentList title="Sesiones" type="session" items={sessions} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Cursos" type="course" items={courses} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Eventos" type="event" items={events} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><AdminContentList title="Descargables" type="download" items={downloads} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /><FacilitatorList facilitators={facilitators} onArchived={onArchived} onEdit={(type, item) => setEditing({ type, item })} /></div>
   </CollectionView>;
+}
+
+function PlanManager({ organization, onSaved }) {
+  const [plans, setPlans] = useState([]);
+  const [selected, setSelected] = useState(organization?.plan_key || "sessions");
+  const [status, setStatus] = useState("loading");
+  useEffect(() => { setSelected(organization?.plan_key || "sessions"); }, [organization?.id, organization?.plan_key]);
+  useEffect(() => { let alive = true; base44.functions.invoke("academyPlanMutation", { action: "templates" }).then((result) => { if (alive) { setPlans((result?.data || result)?.plans || []); setStatus("ready"); } }).catch(() => { if (alive) setStatus("error"); }); return () => { alive = false; }; }, []);
+  async function assign() {
+    setStatus("saving");
+    try { const result = await base44.functions.invoke("academyPlanMutation", { action: "assign", organization_id: organization?.id, plan_key: selected }); const payload = result?.data || result; if (!payload?.organization) throw new Error("plan_not_saved"); onSaved(payload.organization); setStatus("saved"); } catch { setStatus("error"); }
+  }
+  const currentPlan = plans.find((plan) => plan.key === selected);
+  return <section className="admin-panel plan-panel"><div className="admin-panel-heading"><div><p className="eyebrow">MODELO SAAS</p><h3>Paquete de módulos</h3></div><span className="panel-note">{organization?.plan_status === "active" ? "Activo" : "Piloto"}</span></div><p className="panel-description">Asigna capacidades a la Academy activa. Esta fase no incluye cobros ni precios; solo define los módulos disponibles.</p>{status === "loading" ? <span className="panel-note">Cargando plantillas...</span> : <><div className="plan-grid">{plans.map((plan) => <button type="button" className={`plan-card ${selected === plan.key ? "selected" : ""}`} key={plan.key} onClick={() => setSelected(plan.key)}><strong>{plan.name}</strong><span>{plan.description}</span><small>{plan.modules.length} módulos</small></button>)}</div><div className="form-actions"><button className="primary-button" onClick={assign} disabled={status === "saving" || !currentPlan}>{status === "saving" ? "Guardando..." : "Asignar paquete"}</button>{status === "saved" && <span className="form-success">Paquete asignado</span>}{status === "error" && <span className="form-error">No se pudo asignar</span>}</div></>}</section>;
 }
 
 function AnalyticsPanel({ organization }) {

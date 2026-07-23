@@ -28,6 +28,7 @@ Plataforma independiente y multiempresa de capacitación. Academy by Scalaria es
 - Vista previa del portal como administrador del cliente, facilitador o alumno para revisión operativa.
 - Verificación DNS de dominios personalizados con estado pendiente o registros encontrados.
 - Métricas de uso por Academy, consumo por módulo y actividad administrativa reciente.
+- Plantillas de plan por módulos, con enforcement backend y sin cobro activado.
 - Datos de demostración mientras se conectan las entidades reales del primer cliente.
 
 ## Desarrollo local

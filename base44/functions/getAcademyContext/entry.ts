@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
     ]);
 
     const isManager = canManage;
+    const enabledModules = new Set(Array.isArray(selectedOrganization.enabled_modules) ? selectedOrganization.enabled_modules : []);
     const onboardingItems = {
       branding: Boolean(selectedOrganization.logo_url && /^https:\/\//i.test(selectedOrganization.logo_url)),
       welcome: Boolean(selectedOrganization.welcome_message),
@@ -92,13 +93,13 @@ Deno.serve(async (req) => {
       },
       onboarding: { items: onboardingItems, completed: onboardingCompleted, total: onboardingTotal, percentage: Math.round((onboardingCompleted / onboardingTotal) * 100) },
       content: {
-        sessions: sessionRows.filter((item) => isManager || item.status === 'published'),
-        downloads: downloadRows.filter((item) => isManager || item.status === 'published'),
-        events: eventRows.filter((item) => isManager || item.status === 'published'),
-        facilitators: facilitatorRows.filter((item) => isManager || item.status === 'published'),
-        courses: courseRows.filter((item) => isManager || item.status === 'published'),
-        course_modules: moduleRows.filter((item) => isManager || item.status === 'published'),
-        course_lessons: lessonRows.filter((item) => isManager || item.status === 'published'),
+        sessions: enabledModules.has('sessions') ? sessionRows.filter((item) => isManager || item.status === 'published') : [],
+        downloads: enabledModules.has('downloads') ? downloadRows.filter((item) => isManager || item.status === 'published') : [],
+        events: enabledModules.has('events') ? eventRows.filter((item) => isManager || item.status === 'published') : [],
+        facilitators: enabledModules.has('facilitators') ? facilitatorRows.filter((item) => isManager || item.status === 'published') : [],
+        courses: enabledModules.has('courses') ? courseRows.filter((item) => isManager || item.status === 'published') : [],
+        course_modules: enabledModules.has('courses') ? moduleRows.filter((item) => isManager || item.status === 'published') : [],
+        course_lessons: enabledModules.has('courses') ? lessonRows.filter((item) => isManager || item.status === 'published') : [],
         enrollments: enrollmentRows,
         lesson_progress: progressRows,
         certificates: certificateRows.filter((item) => item.status === 'issued'),
